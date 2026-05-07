@@ -19,6 +19,7 @@ const logPrefix = "cleaningLog:";
 export const defaultSettings: Settings = {
   selectedTemplateId: defaultTemplateId,
   resetTime: defaultResetTime,
+  currentZoneIds: [defaultZoneId],
   currentZoneId: defaultZoneId,
   firstRunComplete: false,
 };
@@ -35,7 +36,14 @@ export function loadSettings(): Settings {
   }
 
   try {
-    return { ...defaultSettings, ...JSON.parse(rawSettings) };
+    const parsedSettings = JSON.parse(rawSettings) as Partial<Settings>;
+    const currentZoneIds = Array.isArray(parsedSettings.currentZoneIds)
+      ? parsedSettings.currentZoneIds
+      : parsedSettings.currentZoneId
+        ? [parsedSettings.currentZoneId]
+        : defaultSettings.currentZoneIds;
+
+    return { ...defaultSettings, ...parsedSettings, currentZoneIds };
   } catch {
     return defaultSettings;
   }

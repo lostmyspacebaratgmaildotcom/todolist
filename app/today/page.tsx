@@ -14,10 +14,10 @@ export default function TodayPage() {
     isReady,
     dailyLog,
     template,
-    currentZone,
     zones,
+    selectedZones,
     routineBlocks,
-    routineTasks,
+    todayTasks,
     setTaskCompleted,
     settings,
     startTemplate,
@@ -32,7 +32,7 @@ export default function TodayPage() {
   const zoneNamesById = new Map(zones.map((zone) => [zone.id, zone.name]));
   const nextTask =
     orderedBlocks
-      .flatMap((block) => getTasksForBlock(routineTasks, block.id))
+      .flatMap((block) => getTasksForBlock(todayTasks, block.id))
       .find((task) => !completedTaskIds.includes(task.id)) ?? null;
 
   return (
@@ -66,17 +66,31 @@ export default function TodayPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
-              Current zone
+              Zones for today
             </p>
-            <h2 className="mt-1 text-2xl font-black text-stone-950">
-              {currentZone.name}
-            </h2>
+            {selectedZones.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {selectedZones.map((zone) => (
+                  <span
+                    key={zone.id}
+                    className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-900"
+                  >
+                    {zone.name}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <h2 className="mt-1 text-2xl font-black text-stone-950">
+                No zones selected
+              </h2>
+            )}
             <p className="mt-2 text-sm leading-6 text-stone-600">
-              {currentZone.description}
+              Today only shows general tasks and tasks from zones you selected on
+              the Zones page.
             </p>
           </div>
           <div className="rounded-2xl bg-stone-100 px-3 py-2 text-center text-xs font-black text-stone-700">
-            Zone {currentZone.sortOrder}
+            {selectedZones.length} selected
           </div>
         </div>
       </section>
@@ -124,7 +138,7 @@ export default function TodayPage() {
               key={block.id}
               id={block.id}
               name={block.name}
-              tasks={getTasksForBlock(routineTasks, block.id)}
+              tasks={getTasksForBlock(todayTasks, block.id)}
               completedTaskIds={completedTaskIds}
               zoneNamesById={zoneNamesById}
               current={block.id === currentBlockId}

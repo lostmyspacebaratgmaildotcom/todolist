@@ -7,7 +7,7 @@ based on the PRD in `docs/prd.md` and implements the no-login MVP:
 - Today screen with morning, afternoon, and evening checklists
 - independent completion scores for each block
 - localStorage persistence by local cleaning day
-- apartment zones with manual selection
+- multiple apartment zones selectable for today's checklist
 - 15-minute zone timer
 - local routine management for adding/removing zones and tasks
 - Settings controls for reset time and local data clearing

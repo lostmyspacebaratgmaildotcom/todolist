@@ -8,14 +8,21 @@ import { routineBlocks } from "@/lib/data";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 export default function ZonesPage() {
-  const { zones, currentZone, routineTasks, updateSettings } = useCleaningApp();
+  const {
+    zones,
+    selectedZoneIds,
+    selectedZones,
+    routineTasks,
+    addZoneToday,
+    removeZoneToday,
+  } = useCleaningApp();
 
   return (
     <AppShell>
       <PageHeader
         eyebrow="Zones"
         title="Choose a focus area"
-        description="Pick the apartment zone that needs today's 15-minute reset. Automatic rotation can come later."
+        description="Pick one or more apartment zones for today's checklist. Tasks from unselected zones stay out of Today."
         action={
           <Link
             href="/manage"
@@ -27,24 +34,25 @@ export default function ZonesPage() {
       />
 
       <section className="mb-4 rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
-        <label
-          htmlFor="zone-selector"
-          className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-        >
-          Current zone
-        </label>
-        <select
-          id="zone-selector"
-          value={currentZone.id}
-          onChange={(event) => updateSettings({ currentZoneId: event.target.value })}
-          className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-        >
-          {zones.map((zone) => (
-            <option key={zone.id} value={zone.id}>
-              {zone.name}
-            </option>
-          ))}
-        </select>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+          Zones for today
+        </p>
+        {selectedZones.length > 0 ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selectedZones.map((zone) => (
+              <span
+                key={zone.id}
+                className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-900"
+              >
+                {zone.name}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-sm font-semibold text-stone-600">
+            No zones selected. Today will show general tasks only.
+          </p>
+        )}
       </section>
 
       <div className="mb-4">
@@ -53,14 +61,14 @@ export default function ZonesPage() {
 
       <div className="space-y-4">
         {zones.map((zone) => {
-          const isCurrent = zone.id === currentZone.id;
+          const isSelected = selectedZoneIds.includes(zone.id);
           const zoneTasks = routineTasks.filter((task) => task.zoneId === zone.id);
 
           return (
             <article
               key={zone.id}
               className={`rounded-[2rem] bg-white p-4 shadow-sm ring-1 ${
-                isCurrent ? "ring-emerald-300" : "ring-stone-200"
+                isSelected ? "ring-emerald-300" : "ring-stone-200"
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -72,9 +80,9 @@ export default function ZonesPage() {
                     {zone.name}
                   </h2>
                 </div>
-                {isCurrent ? (
+                {isSelected ? (
                   <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
-                    Current
+                    In Today
                   </span>
                 ) : null}
               </div>
@@ -133,22 +141,30 @@ export default function ZonesPage() {
                   </ul>
                 </details>
               ) : null}
-              <button
-                type="button"
-                onClick={() => updateSettings({ currentZoneId: zone.id })}
-                aria-label={
-                  isCurrent
-                    ? `${zone.name} is already selected. Use this zone today.`
-                    : `Use ${zone.name} as today's zone.`
-                }
-                className={`mt-4 min-h-12 w-full rounded-2xl px-4 text-sm font-black transition ${
-                  isCurrent
-                    ? "bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
-                    : "bg-emerald-950 text-white hover:bg-emerald-900"
-                }`}
-              >
-                Use this zone today
-              </button>
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => addZoneToday(zone.id)}
+                  aria-pressed={isSelected}
+                  className={`min-h-12 flex-1 rounded-2xl px-4 text-sm font-black transition ${
+                    isSelected
+                      ? "bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
+                      : "bg-emerald-950 text-white hover:bg-emerald-900"
+                  }`}
+                >
+                  {isSelected ? "Using this zone today" : "Use this zone today"}
+                </button>
+                {isSelected ? (
+                  <button
+                    type="button"
+                    onClick={() => removeZoneToday(zone.id)}
+                    aria-label={`Remove ${zone.name} from today's zones`}
+                    className="flex min-h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-lg font-black text-red-800 ring-1 ring-red-100 transition hover:bg-red-100"
+                  >
+                    x
+                  </button>
+                ) : null}
+              </div>
             </article>
           );
         })}

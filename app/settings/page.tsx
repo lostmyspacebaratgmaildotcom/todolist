@@ -9,7 +9,7 @@ export default function SettingsPage() {
   const {
     settings,
     template,
-    currentZone,
+    selectedZones,
     updateSettings,
     resetToday,
     clearAllLocalData,
@@ -56,10 +56,12 @@ export default function SettingsPage() {
             </div>
             <div className="rounded-2xl bg-stone-50 p-3">
               <dt className="text-xs font-bold uppercase tracking-wide text-stone-500">
-                Current zone
+                Zones for today
               </dt>
               <dd className="mt-1 text-sm font-black text-stone-900">
-                {currentZone.name}
+                {selectedZones.length > 0
+                  ? selectedZones.map((zone) => zone.name).join(", ")
+                  : "No zones selected"}
               </dd>
             </div>
           </dl>

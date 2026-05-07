@@ -50,6 +50,7 @@ export type DailyLog = {
 export type Settings = {
   selectedTemplateId: string;
   resetTime: string;
+  currentZoneIds: string[];
   currentZoneId: string;
   firstRunComplete: boolean;
 };

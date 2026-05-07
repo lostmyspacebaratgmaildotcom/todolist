@@ -42,12 +42,28 @@ export function useCleaningApp() {
     () => getTemplateById(settings.selectedTemplateId),
     [settings.selectedTemplateId],
   );
+  const selectedZoneIds = useMemo(
+    () =>
+      settings.currentZoneIds.filter((zoneId) =>
+        routineData.zones.some((zone) => zone.id === zoneId),
+      ),
+    [routineData.zones, settings.currentZoneIds],
+  );
+  const selectedZones = useMemo(
+    () => routineData.zones.filter((zone) => selectedZoneIds.includes(zone.id)),
+    [routineData.zones, selectedZoneIds],
+  );
   const currentZone = useMemo(
     () =>
+      selectedZones[0] ??
       routineData.zones.find((zone) => zone.id === settings.currentZoneId) ??
       routineData.zones[0] ??
       defaultZones[0],
-    [routineData.zones, settings.currentZoneId],
+    [routineData.zones, selectedZones, settings.currentZoneId],
+  );
+  const todayTasks = useMemo(
+    () => filterTasksForToday(routineData.tasks, selectedZoneIds),
+    [routineData.tasks, selectedZoneIds],
   );
 
   useEffect(() => {
@@ -58,7 +74,12 @@ export function useCleaningApp() {
 
     setSettings(normalizedSettings);
     setRoutineData(storedRoutineData);
-    setDailyLog(getTodayLog(storedRoutineData.tasks, normalizedSettings));
+    setDailyLog(
+      getTodayLog(
+        filterTasksForToday(storedRoutineData.tasks, normalizedSettings.currentZoneIds),
+        normalizedSettings,
+      ),
+    );
     setIsReady(true);
   }, []);
 
@@ -71,12 +92,14 @@ export function useCleaningApp() {
       const expectedDate = getCleaningDate(settings.resetTime);
 
       if (currentLog?.date === expectedDate) {
-        return currentLog;
+        const nextLog = recalculateLogForTasks(currentLog, todayTasks);
+        saveDailyLog(nextLog);
+        return nextLog;
       }
 
-      return getTodayLog(routineData.tasks, settings);
+      return getTodayLog(todayTasks, settings);
     });
-  }, [isReady, routineData.tasks, settings]);
+  }, [isReady, settings, todayTasks]);
 
   const updateSettings = useCallback(
     (updates: Partial<Settings>) => {
@@ -86,6 +109,52 @@ export function useCleaningApp() {
           routineData.zones,
         );
         saveSettings(nextSettings);
+        return nextSettings;
+      });
+    },
+    [routineData.zones],
+  );
+
+  const addZoneToday = useCallback(
+    (zoneId: string) => {
+      setSettings((currentSettings) => {
+        const nextZoneIds = Array.from(
+          new Set([...currentSettings.currentZoneIds, zoneId]),
+        );
+        const nextSettings = normalizeSettings(
+          {
+            ...currentSettings,
+            currentZoneId: nextZoneIds[0] ?? currentSettings.currentZoneId,
+            currentZoneIds: nextZoneIds,
+          },
+          routineData.zones,
+        );
+
+        saveSettings(nextSettings);
+
+        return nextSettings;
+      });
+    },
+    [routineData.zones],
+  );
+
+  const removeZoneToday = useCallback(
+    (zoneId: string) => {
+      setSettings((currentSettings) => {
+        const nextZoneIds = currentSettings.currentZoneIds.filter(
+          (currentZoneId) => currentZoneId !== zoneId,
+        );
+        const nextSettings = normalizeSettings(
+          {
+            ...currentSettings,
+            currentZoneId: nextZoneIds[0] ?? currentSettings.currentZoneId,
+            currentZoneIds: nextZoneIds,
+          },
+          routineData.zones,
+        );
+
+        saveSettings(nextSettings);
+
         return nextSettings;
       });
     },
@@ -109,8 +178,12 @@ export function useCleaningApp() {
           },
           nextRoutineData.zones,
         );
+        const nextTodayTasks = filterTasksForToday(
+          nextRoutineData.tasks,
+          nextSettings.currentZoneIds,
+        );
         const date = getCleaningDate(nextSettings.resetTime);
-        const blockCompletion = calculateCompletions(nextRoutineData.tasks, []);
+        const blockCompletion = calculateCompletions(nextTodayTasks, []);
         const nextLog: DailyLog = {
           date,
           completedTaskIds: [],
@@ -135,18 +208,7 @@ export function useCleaningApp() {
     (nextTasks: Task[]) => {
       setDailyLog((currentLog) => {
         const baseLog = currentLog ?? getTodayLog(nextTasks, settings);
-        const activeTaskIds = new Set(nextTasks.map((task) => task.id));
-        const completedTaskIds = baseLog.completedTaskIds.filter((taskId) =>
-          activeTaskIds.has(taskId),
-        );
-        const blockCompletion = calculateCompletions(nextTasks, completedTaskIds);
-        const nextLog: DailyLog = {
-          ...baseLog,
-          completedTaskIds,
-          blockCompletion,
-          dailyCompletion: calculateDailyCompletion(blockCompletion),
-          updatedAt: new Date().toISOString(),
-        };
+        const nextLog = recalculateLogForTasks(baseLog, nextTasks);
 
         saveDailyLog(nextLog);
 
@@ -173,7 +235,7 @@ export function useCleaningApp() {
 
         const completedTaskIds = Array.from(completedSet);
         const blockCompletion = calculateCompletions(
-          routineData.tasks,
+          todayTasks,
           completedTaskIds,
         );
         const nextLog: DailyLog = {
@@ -189,11 +251,11 @@ export function useCleaningApp() {
         return nextLog;
       });
     },
-    [routineData.tasks],
+    [todayTasks],
   );
 
   const resetToday = useCallback(() => {
-    const blockCompletion = calculateCompletions(routineData.tasks, []);
+    const blockCompletion = calculateCompletions(todayTasks, []);
     const nextLog: DailyLog = {
       date: getCleaningDate(settings.resetTime),
       completedTaskIds: [],
@@ -204,7 +266,7 @@ export function useCleaningApp() {
 
     saveDailyLog(nextLog);
     setDailyLog(nextLog);
-  }, [routineData.tasks, settings.resetTime]);
+  }, [settings.resetTime, todayTasks]);
 
   const addZone = useCallback(
     (input: { name: string; description: string }) => {
@@ -260,12 +322,16 @@ export function useCleaningApp() {
         updatedAt: new Date().toISOString(),
       };
       const nextSettings = normalizeSettings(settings, remainingZones);
+      const nextTodayTasks = filterTasksForToday(
+        nextTasks,
+        nextSettings.currentZoneIds,
+      );
 
       saveRoutineData(nextRoutineData);
       saveSettings(nextSettings);
       setRoutineData(nextRoutineData);
       setSettings(nextSettings);
-      reconcileDailyLogForTasks(nextTasks);
+      reconcileDailyLogForTasks(nextTodayTasks);
     },
     [reconcileDailyLogForTasks, routineData, settings],
   );
@@ -306,9 +372,11 @@ export function useCleaningApp() {
 
       saveRoutineData(nextRoutineData);
       setRoutineData(nextRoutineData);
-      reconcileDailyLogForTasks(nextTasks);
+      reconcileDailyLogForTasks(
+        filterTasksForToday(nextTasks, settings.currentZoneIds),
+      );
     },
-    [reconcileDailyLogForTasks, routineData],
+    [reconcileDailyLogForTasks, routineData, settings.currentZoneIds],
   );
 
   const deleteTask = useCallback(
@@ -322,9 +390,11 @@ export function useCleaningApp() {
 
       saveRoutineData(nextRoutineData);
       setRoutineData(nextRoutineData);
-      reconcileDailyLogForTasks(nextTasks);
+      reconcileDailyLogForTasks(
+        filterTasksForToday(nextTasks, settings.currentZoneIds),
+      );
     },
-    [reconcileDailyLogForTasks, routineData],
+    [reconcileDailyLogForTasks, routineData, settings.currentZoneIds],
   );
 
   const clearAllLocalData = useCallback(() => {
@@ -333,7 +403,10 @@ export function useCleaningApp() {
     const nextRoutineData = createRoutineDataFromTemplate(
       getTemplateById(nextSettings.selectedTemplateId),
     );
-    const nextLog = getTodayLog(nextRoutineData.tasks, nextSettings);
+    const nextLog = getTodayLog(
+      filterTasksForToday(nextRoutineData.tasks, nextSettings.currentZoneIds),
+      nextSettings,
+    );
 
     setSettings(nextSettings);
     setRoutineData(nextRoutineData);
@@ -349,9 +422,14 @@ export function useCleaningApp() {
     templates,
     zones: routineData.zones,
     routineTasks: routineData.tasks,
+    todayTasks,
+    selectedZoneIds,
+    selectedZones,
     currentZone,
     routineBlocks,
     updateSettings,
+    addZoneToday,
+    removeZoneToday,
     startTemplate,
     setTaskCompleted,
     resetToday,
@@ -373,18 +451,54 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
   )
     ? settings.selectedTemplateId
     : defaultSettings.selectedTemplateId;
-  const currentZoneId = zones.some((zone) => zone.id === settings.currentZoneId)
-    ? settings.currentZoneId
-    : (zones[0]?.id ?? defaultZoneId);
+  const validZoneIds = new Set(zones.map((zone) => zone.id));
+  const settingsWithOptionalZones = settings as Settings & {
+    currentZoneIds?: string[];
+  };
+  const hasStoredZoneIds = Array.isArray(settingsWithOptionalZones.currentZoneIds);
+  const currentZoneIds = hasStoredZoneIds
+    ? uniqueZoneIds(settingsWithOptionalZones.currentZoneIds ?? [], validZoneIds)
+    : uniqueZoneIds([settings.currentZoneId], validZoneIds);
+  const currentZoneId =
+    currentZoneIds[0] ??
+    (validZoneIds.has(settings.currentZoneId)
+      ? settings.currentZoneId
+      : (zones[0]?.id ?? defaultZoneId));
 
   return {
     ...defaultSettings,
     ...settings,
     selectedTemplateId,
+    currentZoneIds,
     currentZoneId,
   };
 }
 
 function createLocalId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function uniqueZoneIds(zoneIds: string[], validZoneIds: Set<string>): string[] {
+  return Array.from(new Set(zoneIds.filter((zoneId) => validZoneIds.has(zoneId))));
+}
+
+function filterTasksForToday(tasks: Task[], selectedZoneIds: string[]): Task[] {
+  const selectedZones = new Set(selectedZoneIds);
+
+  return tasks.filter((task) => !task.zoneId || selectedZones.has(task.zoneId));
+}
+
+function recalculateLogForTasks(log: DailyLog, tasks: Task[]): DailyLog {
+  const activeTaskIds = new Set(tasks.map((task) => task.id));
+  const completedTaskIds = log.completedTaskIds.filter((taskId) =>
+    activeTaskIds.has(taskId),
+  );
+  const blockCompletion = calculateCompletions(tasks, completedTaskIds);
+
+  return {
+    ...log,
+    completedTaskIds,
+    blockCompletion,
+    dailyCompletion: calculateDailyCompletion(blockCompletion),
+  };
 }

@@ -10,7 +10,7 @@ import { useCleaningApp } from "@/lib/useCleaningApp";
 export default function ManagePage() {
   const {
     zones,
-    currentZone,
+    selectedZoneIds,
     routineBlocks,
     routineTasks,
     addZone,
@@ -110,7 +110,7 @@ export default function ManagePage() {
           <h2 className="text-xl font-black text-stone-950">Your zones</h2>
           <div className="mt-4 space-y-3">
             {zones.map((zone) => {
-              const isCurrent = zone.id === currentZone.id;
+              const isSelected = selectedZoneIds.includes(zone.id);
               const canDelete = zones.length > 1;
               const assignedTasks = routineTasks.filter(
                 (task) => task.zoneId === zone.id,
@@ -124,9 +124,9 @@ export default function ManagePage() {
                         <h3 className="text-sm font-black text-stone-900">
                           {zone.name}
                         </h3>
-                        {isCurrent ? (
+                        {isSelected ? (
                           <span className="rounded-full bg-emerald-100 px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wide text-emerald-800">
-                            Current
+                            In Today
                           </span>
                         ) : null}
                       </div>
