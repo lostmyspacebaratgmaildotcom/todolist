@@ -3,7 +3,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import { getTasksForBlock } from "@/lib/progress";
 import type { RoutineBlockId, Task } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
@@ -31,10 +30,31 @@ export default function ManagePage() {
   const [editTaskMinutes, setEditTaskMinutes] = useState(5);
   const [editTaskZoneId, setEditTaskZoneId] = useState("");
 
-  const zoneNamesById = useMemo(
-    () => new Map(zones.map((zone) => [zone.id, zone.name])),
-    [zones],
+  const blockNamesById = useMemo(
+    () => new Map(routineBlocks.map((block) => [block.id, block.name])),
+    [routineBlocks],
   );
+  const taskGroups = useMemo(() => {
+    const zoneGroups = zones.map((zone) => ({
+      id: zone.id,
+      name: zone.name,
+      tasks: routineTasks.filter((task) => task.zoneId === zone.id),
+    }));
+    const unassignedTasks = routineTasks.filter((task) => !task.zoneId);
+
+    if (unassignedTasks.length === 0) {
+      return zoneGroups;
+    }
+
+    return [
+      ...zoneGroups,
+      {
+        id: "no-zone",
+        name: "No zone",
+        tasks: unassignedTasks,
+      },
+    ];
+  }, [routineTasks, zones]);
 
   function handleZoneSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -287,26 +307,24 @@ export default function ManagePage() {
         <section className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
           <h2 className="text-xl font-black text-stone-950">Your tasks</h2>
           <div className="mt-4 space-y-4">
-            {routineBlocks.map((block) => {
-              const blockTasks = getTasksForBlock(routineTasks, block.id);
-
+            {taskGroups.map((group) => {
               return (
-                <div key={block.id}>
+                <div key={group.id}>
                   <div className="mb-2 flex items-center justify-between">
                     <h3 className="text-sm font-black uppercase tracking-wide text-stone-700">
-                      {block.name}
+                      {group.name}
                     </h3>
                     <span className="text-xs font-bold text-stone-500">
-                      {blockTasks.length} tasks
+                      {group.tasks.length} tasks
                     </span>
                   </div>
-                  {blockTasks.length === 0 ? (
+                  {group.tasks.length === 0 ? (
                     <div className="rounded-2xl bg-stone-50 p-3 text-sm font-semibold text-stone-500">
                       No tasks yet.
                     </div>
                   ) : (
                     <ul className="space-y-2">
-                      {blockTasks.map((task) => {
+                      {group.tasks.map((task) => {
                         const isEditing = editingTaskId === task.id;
 
                         return (
@@ -426,10 +444,8 @@ export default function ManagePage() {
                                     {task.title}
                                   </p>
                                   <p className="mt-1 text-xs font-semibold text-stone-500">
+                                    {blockNamesById.get(task.block) ?? task.block} -{" "}
                                     {task.estimatedMinutes} min
-                                    {task.zoneId
-                                      ? ` - ${zoneNamesById.get(task.zoneId) ?? "No zone"}`
-                                      : " - No zone"}
                                   </p>
                                 </div>
                                 <div className="flex shrink-0 gap-2">
