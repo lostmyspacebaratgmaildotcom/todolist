@@ -7,7 +7,7 @@ import {
   templates,
   zones as defaultZones,
 } from "./data";
-import { getCleaningDate } from "./date";
+import { formatLocalDate, getCleaningDate } from "./date";
 import { calculateCompletions, calculateDailyCompletion } from "./progress";
 import {
   clearLocalData,
@@ -118,14 +118,48 @@ export function useCleaningApp() {
   const addZoneToday = useCallback(
     (zoneId: string) => {
       setSettings((currentSettings) => {
+        const today = getCleaningDate(currentSettings.resetTime);
         const nextZoneIds = Array.from(
           new Set([...currentSettings.currentZoneIds, zoneId]),
+        );
+        const nextScheduledZoneDates = addScheduledZoneDate(
+          currentSettings.scheduledZoneDates,
+          zoneId,
+          today,
         );
         const nextSettings = normalizeSettings(
           {
             ...currentSettings,
             currentZoneId: nextZoneIds[0] ?? currentSettings.currentZoneId,
             currentZoneIds: nextZoneIds,
+            scheduledZoneDates: nextScheduledZoneDates,
+          },
+          routineData.zones,
+        );
+
+        saveSettings(nextSettings);
+
+        return nextSettings;
+      });
+    },
+    [routineData.zones],
+  );
+
+  const scheduleZoneTomorrow = useCallback(
+    (zoneId: string) => {
+      setSettings((currentSettings) => {
+        const tomorrow = addDaysToDateString(
+          getCleaningDate(currentSettings.resetTime),
+          1,
+        );
+        const nextSettings = normalizeSettings(
+          {
+            ...currentSettings,
+            scheduledZoneDates: addScheduledZoneDate(
+              currentSettings.scheduledZoneDates,
+              zoneId,
+              tomorrow,
+            ),
           },
           routineData.zones,
         );
@@ -323,15 +357,21 @@ export function useCleaningApp() {
         updatedAt: new Date().toISOString(),
       };
       const nextSettings = normalizeSettings(settings, remainingZones);
+      const remainingScheduledZoneDates = { ...nextSettings.scheduledZoneDates };
+      delete remainingScheduledZoneDates[zoneId];
       const nextTodayTasks = filterTasksForToday(
         nextTasks,
         nextSettings.currentZoneIds,
       );
+      const settingsWithoutDeletedZone = {
+        ...nextSettings,
+        scheduledZoneDates: remainingScheduledZoneDates,
+      };
 
       saveRoutineData(nextRoutineData);
-      saveSettings(nextSettings);
+      saveSettings(settingsWithoutDeletedZone);
       setRoutineData(nextRoutineData);
-      setSettings(nextSettings);
+      setSettings(settingsWithoutDeletedZone);
       reconcileDailyLogForTasks(nextTodayTasks);
     },
     [reconcileDailyLogForTasks, routineData, settings],
@@ -530,6 +570,7 @@ export function useCleaningApp() {
     updateSettings,
     addZoneToday,
     removeZoneToday,
+    scheduleZoneTomorrow,
     startTemplate,
     setTaskCompleted,
     resetToday,
@@ -566,6 +607,16 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
     (validZoneIds.has(settings.currentZoneId)
       ? settings.currentZoneId
       : (zones[0]?.id ?? defaultZoneId));
+  const scheduledZoneDates = Object.fromEntries(
+    Object.entries(settings.scheduledZoneDates ?? {})
+      .filter(([zoneId]) => validZoneIds.has(zoneId))
+      .map(([zoneId, dates]) => [
+        zoneId,
+        Array.from(new Set(dates)).filter((date) =>
+          /^\d{4}-\d{2}-\d{2}$/.test(date),
+        ),
+      ]),
+  );
 
   return {
     ...defaultSettings,
@@ -573,6 +624,7 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
     selectedTemplateId,
     currentZoneIds,
     currentZoneId,
+    scheduledZoneDates,
   };
 }
 
@@ -603,4 +655,23 @@ function recalculateLogForTasks(log: DailyLog, tasks: Task[]): DailyLog {
     blockCompletion,
     dailyCompletion: calculateDailyCompletion(blockCompletion),
   };
+}
+
+function addScheduledZoneDate(
+  scheduledZoneDates: Record<string, string[]>,
+  zoneId: string,
+  date: string,
+): Record<string, string[]> {
+  return {
+    ...scheduledZoneDates,
+    [zoneId]: Array.from(new Set([...(scheduledZoneDates[zoneId] ?? []), date])),
+  };
+}
+
+function addDaysToDateString(dateString: string, days: number): string {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+
+  return formatLocalDate(date);
 }

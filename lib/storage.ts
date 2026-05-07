@@ -29,6 +29,7 @@ export const defaultSettings: Settings = {
   resetTime: defaultResetTime,
   currentZoneIds: [defaultZoneId],
   currentZoneId: defaultZoneId,
+  scheduledZoneDates: {},
   firstRunComplete: false,
 };
 
@@ -50,8 +51,18 @@ export function loadSettings(): Settings {
       : parsedSettings.currentZoneId
         ? [parsedSettings.currentZoneId]
         : defaultSettings.currentZoneIds;
+    const scheduledZoneDates =
+      parsedSettings.scheduledZoneDates &&
+      typeof parsedSettings.scheduledZoneDates === "object"
+        ? normalizeScheduledZoneDates(parsedSettings.scheduledZoneDates)
+        : defaultSettings.scheduledZoneDates;
 
-    return { ...defaultSettings, ...parsedSettings, currentZoneIds };
+    return {
+      ...defaultSettings,
+      ...parsedSettings,
+      currentZoneIds,
+      scheduledZoneDates,
+    };
   } catch {
     return defaultSettings;
   }
@@ -196,5 +207,25 @@ function isZoneFrequency(value: unknown): value is ZoneFrequency {
     value === "weekly" ||
     value === "monthly" ||
     value === "once"
+  );
+}
+
+function normalizeScheduledZoneDates(
+  scheduledZoneDates: Record<string, unknown>,
+): Record<string, string[]> {
+  return Object.fromEntries(
+    Object.entries(scheduledZoneDates).map(([zoneId, dates]) => [
+      zoneId,
+      Array.isArray(dates)
+        ? Array.from(
+            new Set(
+              dates.filter(
+                (date): date is string =>
+                  typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date),
+              ),
+            ),
+          )
+        : [],
+    ]),
   );
 }

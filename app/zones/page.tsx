@@ -5,6 +5,8 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { ZoneTimer } from "@/components/ZoneTimer";
 import { routineBlocks } from "@/lib/data";
+import { formatLocalDate, getCleaningDate } from "@/lib/date";
+import type { Zone, ZoneFrequency } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 export default function ZonesPage() {
@@ -12,10 +14,14 @@ export default function ZonesPage() {
     zones,
     selectedZoneIds,
     selectedZones,
+    settings,
     routineTasks,
     addZoneToday,
     removeZoneToday,
+    scheduleZoneTomorrow,
   } = useCleaningApp();
+  const today = getCleaningDate(settings.resetTime);
+  const tomorrow = addDaysToDateString(today, 1);
 
   return (
     <AppShell>
@@ -63,6 +69,14 @@ export default function ZonesPage() {
         {zones.map((zone) => {
           const isSelected = selectedZoneIds.includes(zone.id);
           const zoneTasks = routineTasks.filter((task) => task.zoneId === zone.id);
+          const scheduledDates = settings.scheduledZoneDates[zone.id] ?? [];
+          const scheduleStatus = getZoneScheduleStatus(
+            zone,
+            scheduledDates,
+            today,
+            tomorrow,
+          );
+          const isScheduledTomorrow = scheduledDates.includes(tomorrow);
 
           return (
             <article
@@ -75,6 +89,15 @@ export default function ZonesPage() {
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
                     Zone {zone.sortOrder}
+                    {scheduleStatus.needsReminder ? (
+                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-1 text-[0.65rem] tracking-wide text-amber-800">
+                        {scheduleStatus.message}
+                      </span>
+                    ) : (
+                      <span className="ml-2 rounded-full bg-emerald-100 px-2 py-1 text-[0.65rem] tracking-wide text-emerald-800">
+                        {scheduleStatus.message}
+                      </span>
+                    )}
                   </p>
                   <h2 className="mt-1 text-xl font-black text-stone-950">
                     {zone.name}
@@ -168,6 +191,19 @@ export default function ZonesPage() {
                   </button>
                 ) : null}
               </div>
+              <button
+                type="button"
+                onClick={() => scheduleZoneTomorrow(zone.id)}
+                className={`mt-2 min-h-12 w-full rounded-2xl px-4 text-sm font-black transition ${
+                  isScheduledTomorrow
+                    ? "bg-sky-100 text-sky-900 hover:bg-sky-200"
+                    : "bg-stone-100 text-stone-800 hover:bg-stone-200"
+                }`}
+              >
+                {isScheduledTomorrow
+                  ? "Scheduled for tomorrow"
+                  : "Schedule for tomorrow"}
+              </button>
             </article>
           );
         })}
@@ -190,4 +226,125 @@ function formatZoneFrequency(frequency: string): string {
   }
 
   return "Daily";
+}
+
+function getZoneScheduleStatus(
+  zone: Zone,
+  scheduledDates: string[],
+  today: string,
+  tomorrow: string,
+): { message: string; needsReminder: boolean } {
+  if (scheduledDates.includes(today)) {
+    return { message: "Scheduled today", needsReminder: false };
+  }
+
+  if (scheduledDates.includes(tomorrow)) {
+    return { message: "Scheduled tomorrow", needsReminder: false };
+  }
+
+  if (isScheduledForFrequencyWindow(zone.frequency, scheduledDates, today)) {
+    return {
+      message: scheduledMessageForFrequency(zone.frequency),
+      needsReminder: false,
+    };
+  }
+
+  return {
+    message: reminderMessageForFrequency(zone.frequency),
+    needsReminder: true,
+  };
+}
+
+function isScheduledForFrequencyWindow(
+  frequency: ZoneFrequency,
+  scheduledDates: string[],
+  today: string,
+): boolean {
+  if (frequency === "once") {
+    return scheduledDates.length > 0;
+  }
+
+  if (frequency === "daily") {
+    return scheduledDates.includes(today);
+  }
+
+  const todayDate = parseLocalDate(today);
+
+  return scheduledDates.some((dateString) => {
+    const date = parseLocalDate(dateString);
+
+    if (frequency === "weekly") {
+      return isSameWeek(date, todayDate);
+    }
+
+    if (frequency === "monthly") {
+      return (
+        date.getFullYear() === todayDate.getFullYear() &&
+        date.getMonth() === todayDate.getMonth()
+      );
+    }
+
+    return false;
+  });
+}
+
+function reminderMessageForFrequency(frequency: ZoneFrequency): string {
+  if (frequency === "weekly") {
+    return "Not scheduled this week";
+  }
+
+  if (frequency === "monthly") {
+    return "Not scheduled this month";
+  }
+
+  if (frequency === "once") {
+    return "Not scheduled yet";
+  }
+
+  return "Not scheduled today";
+}
+
+function scheduledMessageForFrequency(frequency: ZoneFrequency): string {
+  if (frequency === "weekly") {
+    return "Scheduled this week";
+  }
+
+  if (frequency === "monthly") {
+    return "Scheduled this month";
+  }
+
+  if (frequency === "once") {
+    return "Scheduled once";
+  }
+
+  return "Scheduled today";
+}
+
+function isSameWeek(date: Date, today: Date): boolean {
+  const startOfDateWeek = startOfWeek(date);
+  const startOfTodayWeek = startOfWeek(today);
+
+  return startOfDateWeek.getTime() === startOfTodayWeek.getTime();
+}
+
+function startOfWeek(date: Date): Date {
+  const start = new Date(date);
+  const day = start.getDay();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - day);
+
+  return start;
+}
+
+function parseLocalDate(dateString: string): Date {
+  const [year, month, day] = dateString.split("-").map(Number);
+
+  return new Date(year, month - 1, day);
+}
+
+function addDaysToDateString(dateString: string, days: number): string {
+  const date = parseLocalDate(dateString);
+  date.setDate(date.getDate() + days);
+
+  return formatLocalDate(date);
 }

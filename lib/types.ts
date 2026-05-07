@@ -55,6 +55,7 @@ export type Settings = {
   resetTime: string;
   currentZoneIds: string[];
   currentZoneId: string;
+  scheduledZoneDates: Record<string, string[]>;
   firstRunComplete: boolean;
 };
 
