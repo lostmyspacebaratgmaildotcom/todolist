@@ -175,14 +175,21 @@ export function useCleaningApp() {
   const removeZoneToday = useCallback(
     (zoneId: string) => {
       setSettings((currentSettings) => {
+        const today = getCleaningDate(currentSettings.resetTime);
         const nextZoneIds = currentSettings.currentZoneIds.filter(
           (currentZoneId) => currentZoneId !== zoneId,
+        );
+        const nextScheduledZoneDates = removeScheduledZoneDate(
+          currentSettings.scheduledZoneDates,
+          zoneId,
+          today,
         );
         const nextSettings = normalizeSettings(
           {
             ...currentSettings,
             currentZoneId: nextZoneIds[0] ?? currentSettings.currentZoneId,
             currentZoneIds: nextZoneIds,
+            scheduledZoneDates: nextScheduledZoneDates,
           },
           routineData.zones,
         );
@@ -665,6 +672,27 @@ function addScheduledZoneDate(
   return {
     ...scheduledZoneDates,
     [zoneId]: Array.from(new Set([...(scheduledZoneDates[zoneId] ?? []), date])),
+  };
+}
+
+function removeScheduledZoneDate(
+  scheduledZoneDates: Record<string, string[]>,
+  zoneId: string,
+  date: string,
+): Record<string, string[]> {
+  const nextDates = (scheduledZoneDates[zoneId] ?? []).filter(
+    (scheduledDate) => scheduledDate !== date,
+  );
+
+  if (nextDates.length === 0) {
+    const remainingScheduledZoneDates = { ...scheduledZoneDates };
+    delete remainingScheduledZoneDates[zoneId];
+    return remainingScheduledZoneDates;
+  }
+
+  return {
+    ...scheduledZoneDates,
+    [zoneId]: nextDates,
   };
 }
 
