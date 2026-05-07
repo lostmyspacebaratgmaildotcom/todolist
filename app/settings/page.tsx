@@ -76,7 +76,7 @@ export default function SettingsPage() {
               onClick={resetToday}
               className="min-h-12 rounded-2xl bg-stone-100 px-4 text-sm font-black text-stone-800 transition hover:bg-stone-200"
             >
-              Reset today's checklist
+              Reset today&apos;s checklist
             </button>
             <button
               type="button"
