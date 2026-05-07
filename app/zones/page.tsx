@@ -133,15 +133,22 @@ export default function ZonesPage() {
                   </ul>
                 </details>
               ) : null}
-              {!isCurrent ? (
-                <button
-                  type="button"
-                  onClick={() => updateSettings({ currentZoneId: zone.id })}
-                  className="mt-4 min-h-12 w-full rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
-                >
-                  Use this zone today
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => updateSettings({ currentZoneId: zone.id })}
+                aria-label={
+                  isCurrent
+                    ? `${zone.name} is already selected. Use this zone today.`
+                    : `Use ${zone.name} as today's zone.`
+                }
+                className={`mt-4 min-h-12 w-full rounded-2xl px-4 text-sm font-black transition ${
+                  isCurrent
+                    ? "bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
+                    : "bg-emerald-950 text-white hover:bg-emerald-900"
+                }`}
+              >
+                Use this zone today
+              </button>
             </article>
           );
         })}
