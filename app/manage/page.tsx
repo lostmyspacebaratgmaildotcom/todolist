@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import type { RoutineBlockId, Task, ZoneFrequency } from "@/lib/types";
+import type { RoutineBlockId, Task, Zone, ZoneFrequency } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [
@@ -21,6 +21,7 @@ export default function ManagePage() {
     routineTasks,
     addZone,
     deleteZone,
+    updateZone,
     addTask,
     deleteTask,
     updateTask,
@@ -28,6 +29,11 @@ export default function ManagePage() {
   const [zoneName, setZoneName] = useState("");
   const [zoneDescription, setZoneDescription] = useState("");
   const [zoneFrequency, setZoneFrequency] = useState<ZoneFrequency>("daily");
+  const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
+  const [editZoneName, setEditZoneName] = useState("");
+  const [editZoneDescription, setEditZoneDescription] = useState("");
+  const [editZoneFrequency, setEditZoneFrequency] =
+    useState<ZoneFrequency>("daily");
   const [taskTitle, setTaskTitle] = useState("");
   const [taskBlock, setTaskBlock] = useState<RoutineBlockId>("morning");
   const [taskMinutes, setTaskMinutes] = useState(5);
@@ -91,6 +97,35 @@ export default function ManagePage() {
     });
     setTaskTitle("");
     setTaskMinutes(5);
+  }
+
+  function startZoneEdit(zone: Zone) {
+    setEditingZoneId(zone.id);
+    setEditZoneName(zone.name);
+    setEditZoneDescription(zone.description);
+    setEditZoneFrequency(zone.frequency);
+  }
+
+  function cancelZoneEdit() {
+    setEditingZoneId(null);
+    setEditZoneName("");
+    setEditZoneDescription("");
+    setEditZoneFrequency("daily");
+  }
+
+  function handleZoneEditSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editingZoneId) {
+      return;
+    }
+
+    updateZone(editingZoneId, {
+      name: editZoneName,
+      description: editZoneDescription,
+      frequency: editZoneFrequency,
+    });
+    cancelZoneEdit();
   }
 
   function startTaskEdit(task: Task) {
@@ -211,42 +246,140 @@ export default function ManagePage() {
 
               return (
                 <article key={zone.id} className="rounded-2xl bg-stone-50 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-sm font-black text-stone-900">
-                          {zone.name}
-                        </h3>
-                        {isSelected ? (
-                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wide text-emerald-800">
-                            In Today
-                          </span>
-                        ) : null}
+                  {editingZoneId === zone.id ? (
+                    <form className="space-y-3" onSubmit={handleZoneEditSubmit}>
+                      <div>
+                        <label
+                          htmlFor={`edit-zone-name-${zone.id}`}
+                          className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
+                        >
+                          Zone name
+                        </label>
+                        <input
+                          id={`edit-zone-name-${zone.id}`}
+                          value={editZoneName}
+                          onChange={(event) => setEditZoneName(event.target.value)}
+                          className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-white px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                        />
                       </div>
-                      <p className="mt-1 text-sm leading-6 text-stone-600">
-                        {zone.description}
-                      </p>
-                      <p className="mt-2 text-xs font-bold uppercase tracking-wide text-emerald-700">
-                        {formatZoneFrequency(zone.frequency)}
-                      </p>
-                      <p className="mt-2 text-xs font-bold uppercase tracking-wide text-stone-500">
-                        {assignedTasks.length} assigned task
-                        {assignedTasks.length === 1 ? "" : "s"}
-                      </p>
+                      <div>
+                        <label
+                          htmlFor={`edit-zone-description-${zone.id}`}
+                          className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
+                        >
+                          Description
+                        </label>
+                        <textarea
+                          id={`edit-zone-description-${zone.id}`}
+                          value={editZoneDescription}
+                          onChange={(event) =>
+                            setEditZoneDescription(event.target.value)
+                          }
+                          rows={3}
+                          className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-3 py-3 text-base font-semibold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor={`edit-zone-frequency-${zone.id}`}
+                          className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
+                        >
+                          Frequency
+                        </label>
+                        <select
+                          id={`edit-zone-frequency-${zone.id}`}
+                          value={editZoneFrequency}
+                          onChange={(event) =>
+                            setEditZoneFrequency(
+                              event.target.value as ZoneFrequency,
+                            )
+                          }
+                          className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-white px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                        >
+                          {zoneFrequencyOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={cancelZoneEdit}
+                          className="min-h-11 rounded-2xl bg-white px-3 text-sm font-black text-stone-700 ring-1 ring-stone-200 transition hover:bg-stone-100"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="min-h-11 rounded-2xl bg-emerald-950 px-3 text-sm font-black text-white transition hover:bg-emerald-900"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-black text-stone-900">
+                            {zone.name}
+                          </h3>
+                          {isSelected ? (
+                            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wide text-emerald-800">
+                              In Today
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 text-sm leading-6 text-stone-600">
+                          {zone.description}
+                        </p>
+                        <p className="mt-2 text-xs font-bold uppercase tracking-wide text-emerald-700">
+                          {formatZoneFrequency(zone.frequency)}
+                        </p>
+                        <p className="mt-2 text-xs font-bold uppercase tracking-wide text-stone-500">
+                          {assignedTasks.length} assigned task
+                          {assignedTasks.length === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => startZoneEdit(zone)}
+                          aria-label={`Edit ${zone.name}`}
+                          className="flex min-h-10 w-10 items-center justify-center rounded-xl bg-white text-stone-700 ring-1 ring-stone-200 transition hover:bg-stone-100"
+                        >
+                          <svg
+                            aria-hidden="true"
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!canDelete}
+                          onClick={() => {
+                            if (window.confirm(`Delete ${zone.name}?`)) {
+                              deleteZone(zone.id);
+                            }
+                          }}
+                          aria-label={`Remove ${zone.name}`}
+                          className="flex min-h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-sm font-black text-red-800 ring-1 ring-red-100 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400 disabled:ring-stone-100"
+                        >
+                          x
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      disabled={!canDelete}
-                      onClick={() => {
-                        if (window.confirm(`Delete ${zone.name}?`)) {
-                          deleteZone(zone.id);
-                        }
-                      }}
-                      className="min-h-10 rounded-xl bg-red-50 px-3 text-xs font-black text-red-800 ring-1 ring-red-100 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400 disabled:ring-stone-100"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  )}
                 </article>
               );
             })}

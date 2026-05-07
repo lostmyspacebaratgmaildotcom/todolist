@@ -337,6 +337,50 @@ export function useCleaningApp() {
     [reconcileDailyLogForTasks, routineData, settings],
   );
 
+  const updateZone = useCallback(
+    (
+      zoneId: string,
+      input: {
+        name: string;
+        description: string;
+        frequency: Zone["frequency"];
+      },
+    ) => {
+      const name = input.name.trim();
+
+      if (!name) {
+        return;
+      }
+
+      const zoneToUpdate = routineData.zones.find((zone) => zone.id === zoneId);
+
+      if (!zoneToUpdate) {
+        return;
+      }
+
+      const nextRoutineData = {
+        ...routineData,
+        zones: routineData.zones.map((zone) =>
+          zone.id === zoneId
+            ? {
+                ...zone,
+                name,
+                description:
+                  input.description.trim() ||
+                  "A custom apartment zone for your local routine.",
+                frequency: input.frequency,
+              }
+            : zone,
+        ),
+        updatedAt: new Date().toISOString(),
+      };
+
+      saveRoutineData(nextRoutineData);
+      setRoutineData(nextRoutineData);
+    },
+    [routineData],
+  );
+
   const addTask = useCallback(
     (input: {
       title: string;
@@ -491,6 +535,7 @@ export function useCleaningApp() {
     resetToday,
     addZone,
     deleteZone,
+    updateZone,
     addTask,
     deleteTask,
     updateTask,
