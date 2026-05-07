@@ -19,6 +19,7 @@ export default function ZonesPage() {
     addZoneToday,
     removeZoneToday,
     scheduleZoneTomorrow,
+    removeZoneTomorrow,
   } = useCleaningApp();
   const today = getCleaningDate(settings.resetTime);
   const tomorrow = addDaysToDateString(today, 1);
@@ -191,19 +192,31 @@ export default function ZonesPage() {
                   </button>
                 ) : null}
               </div>
-              <button
-                type="button"
-                onClick={() => scheduleZoneTomorrow(zone.id)}
-                className={`mt-2 min-h-12 w-full rounded-2xl px-4 text-sm font-black transition ${
-                  isScheduledTomorrow
-                    ? "bg-sky-100 text-sky-900 hover:bg-sky-200"
-                    : "bg-stone-100 text-stone-800 hover:bg-stone-200"
-                }`}
-              >
-                {isScheduledTomorrow
-                  ? "Scheduled for tomorrow"
-                  : "Schedule for tomorrow"}
-              </button>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => scheduleZoneTomorrow(zone.id)}
+                  className={`min-h-12 flex-1 rounded-2xl px-4 text-sm font-black transition ${
+                    isScheduledTomorrow
+                      ? "bg-sky-100 text-sky-900 hover:bg-sky-200"
+                      : "bg-stone-100 text-stone-800 hover:bg-stone-200"
+                  }`}
+                >
+                  {isScheduledTomorrow
+                    ? "Scheduled for tomorrow"
+                    : "Schedule for tomorrow"}
+                </button>
+                {isScheduledTomorrow ? (
+                  <button
+                    type="button"
+                    onClick={() => removeZoneTomorrow(zone.id)}
+                    aria-label={`Cancel ${zone.name} scheduled for tomorrow`}
+                    className="flex min-h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-lg font-black text-red-800 ring-1 ring-red-100 transition hover:bg-red-100"
+                  >
+                    x
+                  </button>
+                ) : null}
+              </div>
             </article>
           );
         })}

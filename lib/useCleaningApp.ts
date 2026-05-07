@@ -172,6 +172,33 @@ export function useCleaningApp() {
     [routineData.zones],
   );
 
+  const removeZoneTomorrow = useCallback(
+    (zoneId: string) => {
+      setSettings((currentSettings) => {
+        const tomorrow = addDaysToDateString(
+          getCleaningDate(currentSettings.resetTime),
+          1,
+        );
+        const nextSettings = normalizeSettings(
+          {
+            ...currentSettings,
+            scheduledZoneDates: removeScheduledZoneDate(
+              currentSettings.scheduledZoneDates,
+              zoneId,
+              tomorrow,
+            ),
+          },
+          routineData.zones,
+        );
+
+        saveSettings(nextSettings);
+
+        return nextSettings;
+      });
+    },
+    [routineData.zones],
+  );
+
   const removeZoneToday = useCallback(
     (zoneId: string) => {
       setSettings((currentSettings) => {
@@ -578,6 +605,7 @@ export function useCleaningApp() {
     addZoneToday,
     removeZoneToday,
     scheduleZoneTomorrow,
+    removeZoneTomorrow,
     startTemplate,
     setTaskCompleted,
     resetToday,
