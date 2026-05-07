@@ -32,7 +32,12 @@ export default function ManagePage() {
 
   function handleZoneSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    addZone({ name: zoneName, description: zoneDescription });
+    const newZoneId = addZone({ name: zoneName, description: zoneDescription });
+
+    if (newZoneId) {
+      setTaskZoneId(newZoneId);
+    }
+
     setZoneName("");
     setZoneDescription("");
   }
@@ -107,6 +112,9 @@ export default function ManagePage() {
             {zones.map((zone) => {
               const isCurrent = zone.id === currentZone.id;
               const canDelete = zones.length > 1;
+              const assignedTasks = routineTasks.filter(
+                (task) => task.zoneId === zone.id,
+              );
 
               return (
                 <article key={zone.id} className="rounded-2xl bg-stone-50 p-3">
@@ -124,6 +132,10 @@ export default function ManagePage() {
                       </div>
                       <p className="mt-1 text-sm leading-6 text-stone-600">
                         {zone.description}
+                      </p>
+                      <p className="mt-2 text-xs font-bold uppercase tracking-wide text-stone-500">
+                        {assignedTasks.length} assigned task
+                        {assignedTasks.length === 1 ? "" : "s"}
                       </p>
                     </div>
                     <button

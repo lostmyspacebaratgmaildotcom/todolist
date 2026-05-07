@@ -211,7 +211,7 @@ export function useCleaningApp() {
       const name = input.name.trim();
 
       if (!name) {
-        return;
+        return null;
       }
 
       const nextZone: Zone = {
@@ -238,6 +238,8 @@ export function useCleaningApp() {
       saveSettings(nextSettings);
       setRoutineData(nextRoutineData);
       setSettings(nextSettings);
+
+      return nextZone.id;
     },
     [routineData, settings],
   );

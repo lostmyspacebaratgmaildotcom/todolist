@@ -15,6 +15,7 @@ export default function TodayPage() {
     dailyLog,
     template,
     currentZone,
+    zones,
     routineBlocks,
     routineTasks,
     setTaskCompleted,
@@ -28,6 +29,7 @@ export default function TodayPage() {
     ...routineBlocks.filter((block) => block.id !== currentBlockId),
   ];
   const completedTaskIds = dailyLog?.completedTaskIds ?? [];
+  const zoneNamesById = new Map(zones.map((zone) => [zone.id, zone.name]));
   const nextTask =
     orderedBlocks
       .flatMap((block) => getTasksForBlock(routineTasks, block.id))
@@ -124,6 +126,7 @@ export default function TodayPage() {
               name={block.name}
               tasks={getTasksForBlock(routineTasks, block.id)}
               completedTaskIds={completedTaskIds}
+              zoneNamesById={zoneNamesById}
               current={block.id === currentBlockId}
               onTaskChange={setTaskCompleted}
             />

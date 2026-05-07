@@ -6,6 +6,7 @@ type RoutineBlockCardProps = {
   name: string;
   tasks: Task[];
   completedTaskIds: string[];
+  zoneNamesById?: Map<string, string>;
   current?: boolean;
   onTaskChange: (taskId: string, completed: boolean) => void;
 };
@@ -21,6 +22,7 @@ export function RoutineBlockCard({
   name,
   tasks,
   completedTaskIds,
+  zoneNamesById,
   current = false,
   onTaskChange,
 }: RoutineBlockCardProps) {
@@ -103,8 +105,13 @@ export function RoutineBlockCard({
                     >
                       {task.title}
                     </span>
-                    <span className="mt-1 block text-xs text-stone-500">
-                      {task.estimatedMinutes} min
+                    <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-stone-500">
+                      <span>{task.estimatedMinutes} min</span>
+                      {task.zoneId && zoneNamesById?.has(task.zoneId) ? (
+                        <span className="rounded-full bg-white px-2 py-0.5 font-bold text-stone-600 ring-1 ring-stone-200">
+                          {zoneNamesById.get(task.zoneId)}
+                        </span>
+                      ) : null}
                     </span>
                   </span>
                 </label>
