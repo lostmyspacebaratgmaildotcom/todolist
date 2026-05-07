@@ -1,11 +1,35 @@
 import { routineBlocks, tasks } from "./data";
 import type { BlockCompletion, RoutineBlockId, RoutineTemplate, Task } from "./types";
 
-export function getTemplateTasks(template: RoutineTemplate): Task[] {
+export function getTemplateTasks(
+  template: RoutineTemplate,
+  availableTasks: Task[] = tasks,
+): Task[] {
   const included = new Set(template.taskIds);
 
-  return tasks
-    .filter((task) => task.active && included.has(task.id))
+  return sortTasks(
+    availableTasks.filter((task) => task.active && included.has(task.id)),
+  );
+}
+
+export function getTasksForBlock(
+  taskList: Task[],
+  blockId: RoutineBlockId,
+): Task[] {
+  return sortTasks(taskList.filter((task) => task.active && task.block === blockId));
+}
+
+export function getTemplateTasksForBlock(
+  template: RoutineTemplate,
+  blockId: RoutineBlockId,
+  availableTasks: Task[] = tasks,
+): Task[] {
+  return getTasksForBlock(getTemplateTasks(template, availableTasks), blockId);
+}
+
+export function sortTasks(taskList: Task[]): Task[] {
+  return [...taskList]
+    .filter((task) => task.active)
     .sort((first, second) => {
       if (first.block === second.block) {
         return first.sortOrder - second.sortOrder;
@@ -13,15 +37,6 @@ export function getTemplateTasks(template: RoutineTemplate): Task[] {
 
       return blockOrder(first.block) - blockOrder(second.block);
     });
-}
-
-export function getTasksForBlock(
-  template: RoutineTemplate,
-  blockId: RoutineBlockId,
-): Task[] {
-  return getTemplateTasks(template)
-    .filter((task) => task.block === blockId)
-    .sort((first, second) => first.sortOrder - second.sortOrder);
 }
 
 export function calculateBlockCompletion(
@@ -42,14 +57,14 @@ export function calculateBlockCompletion(
 }
 
 export function calculateCompletions(
-  template: RoutineTemplate,
+  taskList: Task[],
   completedTaskIds: string[],
 ): BlockCompletion {
   return routineBlocks.reduce(
     (completion, block) => ({
       ...completion,
       [block.id]: calculateBlockCompletion(
-        getTasksForBlock(template, block.id),
+        getTasksForBlock(taskList, block.id),
         completedTaskIds,
       ),
     }),

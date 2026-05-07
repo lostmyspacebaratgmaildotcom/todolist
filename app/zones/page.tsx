@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { ZoneTimer } from "@/components/ZoneTimer";
@@ -14,6 +15,14 @@ export default function ZonesPage() {
         eyebrow="Zones"
         title="Choose a focus area"
         description="Pick the apartment zone that needs today's 15-minute reset. Automatic rotation can come later."
+        action={
+          <Link
+            href="/manage"
+            className="rounded-2xl bg-emerald-950 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-900"
+          >
+            Manage
+          </Link>
+        }
       />
 
       <section className="mb-4 rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
@@ -70,16 +79,22 @@ export default function ZonesPage() {
               <p className="mt-3 text-sm leading-6 text-stone-600">
                 {zone.description}
               </p>
-              <ul className="mt-4 space-y-2">
-                {zone.suggestedTasks.map((task) => (
-                  <li
-                    key={task}
-                    className="rounded-2xl bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-700"
-                  >
-                    {task}
-                  </li>
-                ))}
-              </ul>
+              {zone.suggestedTasks.length > 0 ? (
+                <ul className="mt-4 space-y-2">
+                  {zone.suggestedTasks.map((task) => (
+                    <li
+                      key={task}
+                      className="rounded-2xl bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-700"
+                    >
+                      {task}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-4 rounded-2xl bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-600">
+                  Add tasks for this zone from Manage.
+                </p>
+              )}
               {!isCurrent ? (
                 <button
                   type="button"

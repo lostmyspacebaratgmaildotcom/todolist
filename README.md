@@ -9,6 +9,7 @@ based on the PRD in `docs/prd.md` and implements the no-login MVP:
 - localStorage persistence by local cleaning day
 - apartment zones with manual selection
 - 15-minute zone timer
+- local routine management for adding/removing zones and tasks
 - Settings controls for reset time and local data clearing
 
 ## Getting started

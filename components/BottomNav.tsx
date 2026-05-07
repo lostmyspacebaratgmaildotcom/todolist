@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/today", label: "Today", icon: "check" },
   { href: "/zones", label: "Zones", icon: "home" },
+  { href: "/manage", label: "Manage", icon: "edit" },
   { href: "/templates", label: "Templates", icon: "list" },
   { href: "/settings", label: "Settings", icon: "gear" },
 ];
@@ -18,7 +19,7 @@ export function BottomNav() {
       aria-label="Primary navigation"
       className="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 shadow-[0_-10px_30px_rgba(68,64,60,0.08)] backdrop-blur"
     >
-      <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
+      <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -75,6 +76,15 @@ function NavIcon({ icon }: { icon: string }) {
         <path d="M4 6h.01" />
         <path d="M4 12h.01" />
         <path d="M4 18h.01" />
+      </svg>
+    );
+  }
+
+  if (icon === "edit") {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
       </svg>
     );
   }

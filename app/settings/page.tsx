@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useCleaningApp } from "@/lib/useCleaningApp";
@@ -62,6 +63,12 @@ export default function SettingsPage() {
               </dd>
             </div>
           </dl>
+          <Link
+            href="/manage"
+            className="mt-4 flex min-h-12 items-center justify-center rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
+          >
+            Manage zones and tasks
+          </Link>
         </section>
 
         <section className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">

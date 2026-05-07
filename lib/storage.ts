@@ -1,9 +1,19 @@
-import { defaultResetTime, defaultTemplateId, defaultZoneId } from "./data";
+import {
+  defaultResetTime,
+  defaultTemplateId,
+  defaultZoneId,
+  zones as defaultZones,
+} from "./data";
 import { getCleaningDate } from "./date";
-import { calculateCompletions, calculateDailyCompletion } from "./progress";
-import type { DailyLog, RoutineTemplate, Settings } from "./types";
+import {
+  calculateCompletions,
+  calculateDailyCompletion,
+  getTemplateTasks,
+} from "./progress";
+import type { DailyLog, EditableRoutineData, RoutineTemplate, Settings, Task } from "./types";
 
 const settingsKey = "apartment-reset:settings";
+const routineDataKey = "apartment-reset:routine-data";
 const logPrefix = "cleaningLog:";
 
 export const defaultSettings: Settings = {
@@ -39,21 +49,72 @@ export function saveSettings(settings: Settings): void {
   window.localStorage.setItem(settingsKey, JSON.stringify(settings));
 }
 
-export function getTodayLog(template: RoutineTemplate, settings: Settings): DailyLog {
+export function createRoutineDataFromTemplate(
+  template: RoutineTemplate,
+  zones = defaultZones,
+): EditableRoutineData {
+  return {
+    zones,
+    tasks: getTemplateTasks(template).map((task) => ({ ...task })),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function loadRoutineData(template: RoutineTemplate): EditableRoutineData {
+  if (!canUseStorage()) {
+    return createRoutineDataFromTemplate(template);
+  }
+
+  const rawRoutineData = window.localStorage.getItem(routineDataKey);
+
+  if (!rawRoutineData) {
+    return createRoutineDataFromTemplate(template);
+  }
+
+  try {
+    const parsed = JSON.parse(rawRoutineData) as EditableRoutineData;
+
+    if (!Array.isArray(parsed.zones) || !Array.isArray(parsed.tasks)) {
+      return createRoutineDataFromTemplate(template);
+    }
+
+    return {
+      zones: parsed.zones,
+      tasks: parsed.tasks,
+      updatedAt: parsed.updatedAt ?? new Date().toISOString(),
+    };
+  } catch {
+    return createRoutineDataFromTemplate(template);
+  }
+}
+
+export function saveRoutineData(routineData: EditableRoutineData): void {
+  if (!canUseStorage()) {
+    return;
+  }
+
+  window.localStorage.setItem(routineDataKey, JSON.stringify(routineData));
+}
+
+export function getTodayLog(tasks: Task[], settings: Settings): DailyLog {
   const date = getCleaningDate(settings.resetTime);
   const existingLog = loadDailyLog(date);
 
   if (existingLog) {
-    const blockCompletion = calculateCompletions(template, existingLog.completedTaskIds);
+    const validCompletedTaskIds = existingLog.completedTaskIds.filter((taskId) =>
+      tasks.some((task) => task.id === taskId),
+    );
+    const blockCompletion = calculateCompletions(tasks, validCompletedTaskIds);
 
     return {
       ...existingLog,
+      completedTaskIds: validCompletedTaskIds,
       blockCompletion,
       dailyCompletion: calculateDailyCompletion(blockCompletion),
     };
   }
 
-  const blockCompletion = calculateCompletions(template, []);
+  const blockCompletion = calculateCompletions(tasks, []);
 
   return {
     date,
@@ -78,7 +139,7 @@ export function clearLocalData(): void {
   }
 
   const keysToRemove = Object.keys(window.localStorage).filter(
-    (key) => key === settingsKey || key.startsWith(logPrefix),
+    (key) => key === settingsKey || key === routineDataKey || key.startsWith(logPrefix),
   );
 
   keysToRemove.forEach((key) => window.localStorage.removeItem(key));

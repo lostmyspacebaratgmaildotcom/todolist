@@ -53,3 +53,9 @@ export type Settings = {
   currentZoneId: string;
   firstRunComplete: boolean;
 };
+
+export type EditableRoutineData = {
+  zones: Zone[];
+  tasks: Task[];
+  updatedAt: string;
+};

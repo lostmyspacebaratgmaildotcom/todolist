@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { routineBlocks } from "@/lib/data";
-import { getTasksForBlock } from "@/lib/progress";
+import { getTemplateTasksForBlock } from "@/lib/progress";
 import type { RoutineTemplate } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
@@ -45,7 +45,7 @@ export function TemplateDetail({ template }: { template: RoutineTemplate }) {
 
       <div className="space-y-4">
         {routineBlocks.map((block) => {
-          const blockTasks = getTasksForBlock(template, block.id);
+          const blockTasks = getTemplateTasksForBlock(template, block.id);
           const minutes = blockTasks.reduce((sum, task) => sum + task.estimatedMinutes, 0);
 
           return (

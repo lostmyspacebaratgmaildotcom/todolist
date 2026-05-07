@@ -69,42 +69,50 @@ export function RoutineBlockCard({
         </p>
       ) : null}
 
-      <ul className="mt-4 space-y-3">
-        {tasks.map((task) => {
-          const checked = completedTaskIds.includes(task.id);
+      {tasks.length === 0 ? (
+        <div className="mt-4 rounded-2xl bg-stone-50 p-4 text-sm font-semibold text-stone-600">
+          No tasks in this block yet. Add one from Manage.
+        </div>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {tasks.map((task) => {
+            const checked = completedTaskIds.includes(task.id);
 
-          return (
-            <li key={task.id}>
-              <label
-                className={`flex min-h-14 cursor-pointer items-start gap-3 rounded-2xl border p-3 transition ${
-                  checked
-                    ? "border-emerald-200 bg-emerald-50"
-                    : "border-stone-200 bg-stone-50 hover:border-stone-300"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  className="mt-1 h-5 w-5 rounded border-stone-300 text-emerald-700 focus:ring-emerald-700"
-                  checked={checked}
-                  onChange={(event) => onTaskChange(task.id, event.target.checked)}
-                />
-                <span className="flex-1">
-                  <span
-                    className={`block text-sm font-bold ${
-                      checked ? "text-emerald-950 line-through decoration-emerald-600" : "text-stone-900"
-                    }`}
-                  >
-                    {task.title}
+            return (
+              <li key={task.id}>
+                <label
+                  className={`flex min-h-14 cursor-pointer items-start gap-3 rounded-2xl border p-3 transition ${
+                    checked
+                      ? "border-emerald-200 bg-emerald-50"
+                      : "border-stone-200 bg-stone-50 hover:border-stone-300"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-5 w-5 rounded border-stone-300 text-emerald-700 focus:ring-emerald-700"
+                    checked={checked}
+                    onChange={(event) => onTaskChange(task.id, event.target.checked)}
+                  />
+                  <span className="flex-1">
+                    <span
+                      className={`block text-sm font-bold ${
+                        checked
+                          ? "text-emerald-950 line-through decoration-emerald-600"
+                          : "text-stone-900"
+                      }`}
+                    >
+                      {task.title}
+                    </span>
+                    <span className="mt-1 block text-xs text-stone-500">
+                      {task.estimatedMinutes} min
+                    </span>
                   </span>
-                  <span className="mt-1 block text-xs text-stone-500">
-                    {task.estimatedMinutes} min
-                  </span>
-                </span>
-              </label>
-            </li>
-          );
-        })}
-      </ul>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

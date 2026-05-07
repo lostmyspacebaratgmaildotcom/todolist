@@ -5,7 +5,6 @@ import { PageHeader } from "@/components/PageHeader";
 import { ProgressPill } from "@/components/ProgressPill";
 import { RoutineBlockCard } from "@/components/RoutineBlockCard";
 import { ZoneTimer } from "@/components/ZoneTimer";
-import { routineBlocks } from "@/lib/data";
 import { formatDisplayDate } from "@/lib/date";
 import { getCurrentBlockId, getTasksForBlock } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
@@ -16,6 +15,8 @@ export default function TodayPage() {
     dailyLog,
     template,
     currentZone,
+    routineBlocks,
+    routineTasks,
     setTaskCompleted,
     settings,
     startTemplate,
@@ -29,7 +30,7 @@ export default function TodayPage() {
   const completedTaskIds = dailyLog?.completedTaskIds ?? [];
   const nextTask =
     orderedBlocks
-      .flatMap((block) => getTasksForBlock(template, block.id))
+      .flatMap((block) => getTasksForBlock(routineTasks, block.id))
       .find((task) => !completedTaskIds.includes(task.id)) ?? null;
 
   return (
@@ -91,7 +92,7 @@ export default function TodayPage() {
           </p>
         ) : (
           <p className="mt-1 text-sm font-semibold text-stone-600">
-            All three routine blocks are at 100%.
+            All available routine tasks are complete.
           </p>
         )}
       </section>
@@ -121,7 +122,7 @@ export default function TodayPage() {
               key={block.id}
               id={block.id}
               name={block.name}
-              tasks={getTasksForBlock(template, block.id)}
+              tasks={getTasksForBlock(routineTasks, block.id)}
               completedTaskIds={completedTaskIds}
               current={block.id === currentBlockId}
               onTaskChange={setTaskCompleted}
