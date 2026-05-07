@@ -397,6 +397,61 @@ export function useCleaningApp() {
     [reconcileDailyLogForTasks, routineData, settings.currentZoneIds],
   );
 
+  const updateTask = useCallback(
+    (
+      taskId: string,
+      input: {
+        title: string;
+        block: RoutineBlockId;
+        estimatedMinutes: number;
+        zoneId?: string;
+      },
+    ) => {
+      const title = input.title.trim();
+
+      if (!title) {
+        return;
+      }
+
+      const taskToUpdate = routineData.tasks.find((task) => task.id === taskId);
+
+      if (!taskToUpdate) {
+        return;
+      }
+
+      const blockChanged = taskToUpdate.block !== input.block;
+      const nextSortOrder = blockChanged
+        ? routineData.tasks
+            .filter((task) => task.block === input.block && task.id !== taskId)
+            .reduce((max, task) => Math.max(max, task.sortOrder), 0) + 1
+        : taskToUpdate.sortOrder;
+      const nextTasks = routineData.tasks.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              title,
+              block: input.block,
+              zoneId: input.zoneId || undefined,
+              estimatedMinutes: Math.max(1, Math.round(input.estimatedMinutes || 1)),
+              sortOrder: nextSortOrder,
+            }
+          : task,
+      );
+      const nextRoutineData = {
+        ...routineData,
+        tasks: nextTasks,
+        updatedAt: new Date().toISOString(),
+      };
+
+      saveRoutineData(nextRoutineData);
+      setRoutineData(nextRoutineData);
+      reconcileDailyLogForTasks(
+        filterTasksForToday(nextTasks, settings.currentZoneIds),
+      );
+    },
+    [reconcileDailyLogForTasks, routineData, settings.currentZoneIds],
+  );
+
   const clearAllLocalData = useCallback(() => {
     clearLocalData();
     const nextSettings = defaultSettings;
@@ -437,6 +492,7 @@ export function useCleaningApp() {
     deleteZone,
     addTask,
     deleteTask,
+    updateTask,
     clearAllLocalData,
   };
 }
