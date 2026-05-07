@@ -229,10 +229,7 @@ export function useCleaningApp() {
         zones: [...routineData.zones, nextZone],
         updatedAt: new Date().toISOString(),
       };
-      const nextSettings = normalizeSettings(
-        { ...settings, currentZoneId: nextZone.id },
-        nextRoutineData.zones,
-      );
+      const nextSettings = normalizeSettings(settings, nextRoutineData.zones);
 
       saveRoutineData(nextRoutineData);
       saveSettings(nextSettings);
