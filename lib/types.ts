@@ -2,6 +2,8 @@ export type RoutineBlockId = "morning" | "afternoon" | "evening";
 
 export type ApartmentType = "studio" | "one-bedroom" | "shared";
 
+export type ZoneFrequency = "daily" | "weekly" | "monthly" | "once";
+
 export type Task = {
   id: string;
   title: string;
@@ -23,6 +25,7 @@ export type Zone = {
   id: string;
   name: string;
   description: string;
+  frequency: ZoneFrequency;
   sortOrder: number;
   active: boolean;
   suggestedTasks: string[];

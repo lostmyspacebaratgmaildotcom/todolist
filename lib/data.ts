@@ -44,6 +44,7 @@ export const zones: Zone[] = [
     id: "entry",
     name: "Entry and drop zones",
     description: "The first visible landing spots for shoes, bags, mail, and laundry.",
+    frequency: "daily",
     sortOrder: 1,
     active: true,
     suggestedTasks: [
@@ -58,6 +59,7 @@ export const zones: Zone[] = [
     id: "kitchen",
     name: "Kitchen",
     description: "Keep the sink, counters, and visible floor easy to reset.",
+    frequency: "daily",
     sortOrder: 2,
     active: true,
     suggestedTasks: [
@@ -72,6 +74,7 @@ export const zones: Zone[] = [
     id: "bathroom",
     name: "Bathroom",
     description: "A fast refresh for the sink, mirror, toilet, towels, and bin.",
+    frequency: "daily",
     sortOrder: 3,
     active: true,
     suggestedTasks: [
@@ -86,6 +89,7 @@ export const zones: Zone[] = [
     id: "bedroom",
     name: "Bedroom and wardrobe",
     description: "Small resets that make the room feel calm before and after the day.",
+    frequency: "daily",
     sortOrder: 4,
     active: true,
     suggestedTasks: [
@@ -100,6 +104,7 @@ export const zones: Zone[] = [
     id: "living",
     name: "Living room and desk",
     description: "The shared sitting and work surfaces that collect daily clutter.",
+    frequency: "daily",
     sortOrder: 5,
     active: true,
     suggestedTasks: [

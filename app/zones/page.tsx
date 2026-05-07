@@ -79,6 +79,9 @@ export default function ZonesPage() {
                   <h2 className="mt-1 text-xl font-black text-stone-950">
                     {zone.name}
                   </h2>
+                  <p className="mt-1 text-xs font-bold uppercase tracking-wide text-emerald-700">
+                    {formatZoneFrequency(zone.frequency)}
+                  </p>
                 </div>
                 {isSelected ? (
                   <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
@@ -171,4 +174,20 @@ export default function ZonesPage() {
       </div>
     </AppShell>
   );
+}
+
+function formatZoneFrequency(frequency: string): string {
+  if (frequency === "weekly") {
+    return "Weekly";
+  }
+
+  if (frequency === "monthly") {
+    return "Monthly";
+  }
+
+  if (frequency === "once") {
+    return "Once";
+  }
+
+  return "Daily";
 }

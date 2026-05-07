@@ -269,7 +269,7 @@ export function useCleaningApp() {
   }, [settings.resetTime, todayTasks]);
 
   const addZone = useCallback(
-    (input: { name: string; description: string }) => {
+    (input: { name: string; description: string; frequency: Zone["frequency"] }) => {
       const name = input.name.trim();
 
       if (!name) {
@@ -282,6 +282,7 @@ export function useCleaningApp() {
         description:
           input.description.trim() ||
           "A custom apartment zone for your local routine.",
+        frequency: input.frequency,
         sortOrder: routineData.zones.length + 1,
         active: true,
         suggestedTasks: [],

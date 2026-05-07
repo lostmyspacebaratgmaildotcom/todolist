@@ -10,7 +10,15 @@ import {
   calculateDailyCompletion,
   getTemplateTasks,
 } from "./progress";
-import type { DailyLog, EditableRoutineData, RoutineTemplate, Settings, Task } from "./types";
+import type {
+  DailyLog,
+  EditableRoutineData,
+  RoutineTemplate,
+  Settings,
+  Task,
+  Zone,
+  ZoneFrequency,
+} from "./types";
 
 const settingsKey = "apartment-reset:settings";
 const routineDataKey = "apartment-reset:routine-data";
@@ -62,7 +70,7 @@ export function createRoutineDataFromTemplate(
   zones = defaultZones,
 ): EditableRoutineData {
   return {
-    zones,
+    zones: normalizeZones(zones),
     tasks: getTemplateTasks(template).map((task) => ({ ...task })),
     updatedAt: new Date().toISOString(),
   };
@@ -87,7 +95,7 @@ export function loadRoutineData(template: RoutineTemplate): EditableRoutineData 
     }
 
     return {
-      zones: parsed.zones,
+      zones: normalizeZones(parsed.zones),
       tasks: parsed.tasks,
       updatedAt: parsed.updatedAt ?? new Date().toISOString(),
     };
@@ -173,4 +181,20 @@ function loadDailyLog(date: string): DailyLog | null {
 
 function canUseStorage(): boolean {
   return typeof window !== "undefined" && "localStorage" in window;
+}
+
+function normalizeZones(zones: Zone[]): Zone[] {
+  return zones.map((zone) => ({
+    ...zone,
+    frequency: isZoneFrequency(zone.frequency) ? zone.frequency : "daily",
+  }));
+}
+
+function isZoneFrequency(value: unknown): value is ZoneFrequency {
+  return (
+    value === "daily" ||
+    value === "weekly" ||
+    value === "monthly" ||
+    value === "once"
+  );
 }

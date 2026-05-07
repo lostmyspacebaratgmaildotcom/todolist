@@ -3,8 +3,15 @@
 import { FormEvent, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import type { RoutineBlockId, Task } from "@/lib/types";
+import type { RoutineBlockId, Task, ZoneFrequency } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
+
+const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "once", label: "Once" },
+];
 
 export default function ManagePage() {
   const {
@@ -20,6 +27,7 @@ export default function ManagePage() {
   } = useCleaningApp();
   const [zoneName, setZoneName] = useState("");
   const [zoneDescription, setZoneDescription] = useState("");
+  const [zoneFrequency, setZoneFrequency] = useState<ZoneFrequency>("daily");
   const [taskTitle, setTaskTitle] = useState("");
   const [taskBlock, setTaskBlock] = useState<RoutineBlockId>("morning");
   const [taskMinutes, setTaskMinutes] = useState(5);
@@ -58,7 +66,11 @@ export default function ManagePage() {
 
   function handleZoneSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const newZoneId = addZone({ name: zoneName, description: zoneDescription });
+    const newZoneId = addZone({
+      name: zoneName,
+      description: zoneDescription,
+      frequency: zoneFrequency,
+    });
 
     if (newZoneId) {
       setTaskZoneId(newZoneId);
@@ -66,6 +78,7 @@ export default function ManagePage() {
 
     setZoneName("");
     setZoneDescription("");
+    setZoneFrequency("daily");
   }
 
   function handleTaskSubmit(event: FormEvent<HTMLFormElement>) {
@@ -155,6 +168,28 @@ export default function ManagePage() {
                 className="mt-2 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-3 text-base font-semibold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
               />
             </div>
+            <div>
+              <label
+                htmlFor="zone-frequency"
+                className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
+              >
+                Frequency
+              </label>
+              <select
+                id="zone-frequency"
+                value={zoneFrequency}
+                onChange={(event) =>
+                  setZoneFrequency(event.target.value as ZoneFrequency)
+                }
+                className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              >
+                {zoneFrequencyOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               type="submit"
               className="min-h-12 w-full rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
@@ -190,6 +225,9 @@ export default function ManagePage() {
                       </div>
                       <p className="mt-1 text-sm leading-6 text-stone-600">
                         {zone.description}
+                      </p>
+                      <p className="mt-2 text-xs font-bold uppercase tracking-wide text-emerald-700">
+                        {formatZoneFrequency(zone.frequency)}
                       </p>
                       <p className="mt-2 text-xs font-bold uppercase tracking-wide text-stone-500">
                         {assignedTasks.length} assigned task
@@ -493,4 +531,8 @@ export default function ManagePage() {
       </div>
     </AppShell>
   );
+}
+
+function formatZoneFrequency(frequency: ZoneFrequency): string {
+  return zoneFrequencyOptions.find((option) => option.value === frequency)?.label ?? "Daily";
 }
