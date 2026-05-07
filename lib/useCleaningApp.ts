@@ -674,7 +674,7 @@ function uniqueZoneIds(zoneIds: string[], validZoneIds: Set<string>): string[] {
 function filterTasksForToday(tasks: Task[], selectedZoneIds: string[]): Task[] {
   const selectedZones = new Set(selectedZoneIds);
 
-  return tasks.filter((task) => !task.zoneId || selectedZones.has(task.zoneId));
+  return tasks.filter((task) => task.zoneId && selectedZones.has(task.zoneId));
 }
 
 function recalculateLogForTasks(log: DailyLog, tasks: Task[]): DailyLog {

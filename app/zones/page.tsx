@@ -57,7 +57,8 @@ export default function ZonesPage() {
           </div>
         ) : (
           <p className="mt-2 text-sm font-semibold text-stone-600">
-            No zones selected. Today will show general tasks only.
+            No zones selected. Today will stay empty until you select a zone with
+            assigned tasks.
           </p>
         )}
       </section>

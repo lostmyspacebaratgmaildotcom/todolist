@@ -85,8 +85,8 @@ export default function TodayPage() {
               </h2>
             )}
             <p className="mt-2 text-sm leading-6 text-stone-600">
-              Today only shows general tasks and tasks from zones you selected on
-              the Zones page.
+              Today only shows tasks assigned to zones you selected on the Zones
+              page. Tasks without a zone stay out of Today.
             </p>
           </div>
           <div className="rounded-2xl bg-stone-100 px-3 py-2 text-center text-xs font-black text-stone-700">
@@ -108,7 +108,7 @@ export default function TodayPage() {
           </p>
         ) : (
           <p className="mt-1 text-sm font-semibold text-stone-600">
-            All available routine tasks are complete.
+            Select zones with assigned tasks, or complete the visible zone tasks.
           </p>
         )}
       </section>
