@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import { ZoneTimer } from "@/components/ZoneTimer";
 import { routineBlocks } from "@/lib/data";
 import type { Zone, ZoneFrequency } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
@@ -20,13 +19,15 @@ export default function ZonesPage() {
   const {
     zones,
     selectedZoneIds,
-    selectedZones,
     routineTasks,
+    dailyLog,
     addZoneToday,
     removeZoneToday,
     deleteZone,
     updateZone,
   } = useCleaningApp();
+
+  const completedTaskIds = new Set(dailyLog?.completedTaskIds ?? []);
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [expandedZoneId, setExpandedZoneId] = useState<string | null>(null);
@@ -72,8 +73,8 @@ export default function ZonesPage() {
     <AppShell>
       <PageHeader
         eyebrow="Zones"
-        title="Choose a focus area"
-        description="Pick one or more apartment zones for today's checklist. Tasks from unselected zones stay out of Today."
+        title="Your zones"
+        description="Spaces you maintain."
         action={
           <Link
             href="/manage"
@@ -84,33 +85,6 @@ export default function ZonesPage() {
         }
       />
 
-      <section className="mb-4 rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
-          Zones for today
-        </p>
-        {selectedZones.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {selectedZones.map((zone) => (
-              <span
-                key={zone.id}
-                className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-900"
-              >
-                {zone.name}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-2 text-sm font-semibold text-stone-600">
-            No zones selected. Today will stay empty until you select a zone with
-            assigned tasks.
-          </p>
-        )}
-      </section>
-
-      <div className="mb-4">
-        <ZoneTimer />
-      </div>
-
       <div className="space-y-4">
         {zones.map((zone) => {
           const isSelected = selectedZoneIds.includes(zone.id);
@@ -119,6 +93,17 @@ export default function ZonesPage() {
             (sum, task) => sum + task.estimatedMinutes,
             0,
           );
+          const completedZoneTasks = zoneTasks.filter((task) =>
+            completedTaskIds.has(task.id),
+          );
+          const allDone =
+            zoneTasks.length > 0 &&
+            completedZoneTasks.length === zoneTasks.length;
+          const someDone = completedZoneTasks.length > 0 && !allDone;
+
+          const status = getZoneStatus(zone, isSelected, allDone, someDone);
+          const lastReset = getLastReset(allDone, someDone);
+
           const isExpanded = expandedZoneId === zone.id;
           const isMenuOpen = openMenuId === zone.id;
           const isEditing = editingZoneId === zone.id;
@@ -126,9 +111,7 @@ export default function ZonesPage() {
           return (
             <article
               key={zone.id}
-              className={`rounded-[2rem] bg-white p-4 shadow-sm ring-1 ${
-                isSelected ? "ring-emerald-300" : "ring-stone-200"
-              }`}
+              className="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-stone-200"
             >
               {isEditing ? (
                 <div className="space-y-3">
@@ -203,17 +186,41 @@ export default function ZonesPage() {
               ) : (
                 <>
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-xl font-black text-stone-950">
-                        {zone.name}
-                      </h2>
-                      <p className="mt-1 text-sm font-semibold text-stone-600">
-                        {formatZoneFrequency(zone.frequency)}, {zoneTasks.length}{" "}
-                        task{zoneTasks.length === 1 ? "" : "s"} today, {totalMinutes}{" "}
-                        min
-                      </p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-xl font-black text-stone-950">
+                          {zone.name}
+                        </h2>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wide ${statusStyle(status)}`}
+                        >
+                          {status}
+                        </span>
+                      </div>
+
+                      <dl className="mt-3 space-y-1 text-sm text-stone-600">
+                        <div className="flex gap-2">
+                          <dt className="font-bold text-stone-500">Today:</dt>
+                          <dd className="font-semibold">
+                            {zoneTasks.length} task
+                            {zoneTasks.length === 1 ? "" : "s"}, {totalMinutes}{" "}
+                            min
+                          </dd>
+                        </div>
+                        <div className="flex gap-2">
+                          <dt className="font-bold text-stone-500">Frequency:</dt>
+                          <dd className="font-semibold">
+                            {formatZoneFrequency(zone.frequency)}
+                          </dd>
+                        </div>
+                        <div className="flex gap-2">
+                          <dt className="font-bold text-stone-500">Last reset:</dt>
+                          <dd className="font-semibold">{lastReset}</dd>
+                        </div>
+                      </dl>
                     </div>
-                    <div className="relative">
+
+                    <div className="relative shrink-0">
                       <button
                         type="button"
                         onClick={() =>
@@ -238,7 +245,7 @@ export default function ZonesPage() {
                           <button
                             type="button"
                             onClick={() => startEdit(zone)}
-                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-stone-800 transition hover:bg-stone-100"
+                            className="flex w-full items-center rounded-xl px-3 py-2 text-sm font-bold text-stone-800 transition hover:bg-stone-100"
                           >
                             Edit
                           </button>
@@ -249,7 +256,7 @@ export default function ZonesPage() {
                                 removeZoneToday(zone.id);
                                 setOpenMenuId(null);
                               }}
-                              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-stone-800 transition hover:bg-stone-100"
+                              className="flex w-full items-center rounded-xl px-3 py-2 text-sm font-bold text-stone-800 transition hover:bg-stone-100"
                             >
                               Remove from today
                             </button>
@@ -258,7 +265,7 @@ export default function ZonesPage() {
                             type="button"
                             disabled={zones.length <= 1}
                             onClick={() => handleDelete(zone)}
-                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-stone-400"
+                            className="flex w-full items-center rounded-xl px-3 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-stone-400"
                           >
                             Delete
                           </button>
@@ -267,31 +274,36 @@ export default function ZonesPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!isSelected) addZoneToday(zone.id);
-                      }}
-                      className={`min-h-12 flex-1 rounded-2xl px-4 text-sm font-black transition ${
-                        isSelected
-                          ? "bg-emerald-100 text-emerald-900"
-                          : "bg-emerald-950 text-white hover:bg-emerald-900"
-                      }`}
-                    >
-                      {isSelected
-                        ? `${zone.name} reset started`
-                        : `Start ${zone.name.toLowerCase()} reset`}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setExpandedZoneId(isExpanded ? null : zone.id)
-                      }
-                      className="min-h-12 rounded-2xl bg-stone-100 px-4 text-sm font-black text-stone-800 transition hover:bg-stone-200"
-                    >
-                      {isExpanded ? "Hide tasks" : "View tasks"}
-                    </button>
+                  <div className="mt-4">
+                    {allDone ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedZoneId(isExpanded ? null : zone.id)
+                        }
+                        className="min-h-12 w-full rounded-2xl bg-stone-100 px-4 text-sm font-black text-stone-800 transition hover:bg-stone-200"
+                      >
+                        {isExpanded ? "Hide tasks" : "View tasks"}
+                      </button>
+                    ) : isSelected ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedZoneId(isExpanded ? null : zone.id)
+                        }
+                        className="min-h-12 w-full rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
+                      >
+                        {isExpanded ? "Hide tasks" : `Start ${zone.name.toLowerCase()} reset`}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => addZoneToday(zone.id)}
+                        className="min-h-12 w-full rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
+                      >
+                        Start {zone.name.toLowerCase()} reset
+                      </button>
+                    )}
                   </div>
 
                   {isExpanded ? (
@@ -303,14 +315,17 @@ export default function ZonesPage() {
                               routineBlocks.find(
                                 (block) => block.id === task.block,
                               )?.name ?? task.block;
+                            const isDone = completedTaskIds.has(task.id);
 
                             return (
                               <li
                                 key={task.id}
-                                className="rounded-2xl bg-stone-50 px-3 py-2"
+                                className={`rounded-2xl px-3 py-2 ${isDone ? "bg-emerald-50" : "bg-stone-50"}`}
                               >
                                 <div className="flex items-start justify-between gap-3">
-                                  <span className="text-sm font-black text-stone-800">
+                                  <span
+                                    className={`text-sm font-black ${isDone ? "text-emerald-700 line-through" : "text-stone-800"}`}
+                                  >
                                     {task.title}
                                   </span>
                                   <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wide text-stone-500 ring-1 ring-stone-200">
@@ -339,6 +354,39 @@ export default function ZonesPage() {
       </div>
     </AppShell>
   );
+}
+
+function getZoneStatus(
+  zone: Zone,
+  isSelected: boolean,
+  allDone: boolean,
+  someDone: boolean,
+): string {
+  if (allDone) return "Done today";
+  if (!isSelected && zone.frequency === "daily") return "Skipped today";
+  if (!isSelected) return "Coming up";
+  if (someDone) return "Due today";
+  return "Due today";
+}
+
+function getLastReset(allDone: boolean, someDone: boolean): string {
+  if (allDone || someDone) return "Today";
+  return "Yesterday";
+}
+
+function statusStyle(status: string): string {
+  switch (status) {
+    case "Done today":
+      return "bg-emerald-100 text-emerald-800";
+    case "Due today":
+      return "bg-amber-100 text-amber-800";
+    case "Coming up":
+      return "bg-sky-100 text-sky-800";
+    case "Skipped today":
+      return "bg-stone-100 text-stone-600";
+    default:
+      return "bg-stone-100 text-stone-600";
+  }
 }
 
 function formatZoneFrequency(frequency: string): string {
