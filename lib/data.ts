@@ -355,4 +355,4 @@ export const templates: RoutineTemplate[] = [
 
 export const defaultTemplateId = "one-bedroom-reset";
 export const defaultZoneId = "kitchen";
-export const defaultResetTime = "03:00";
+export const defaultResetTime = "01:00";

@@ -101,6 +101,59 @@ export function useCleaningApp() {
     });
   }, [isReady, settings, todayTasks]);
 
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    const autoSelectDailyZones = () => {
+      const expectedDate = getCleaningDate(settings.resetTime);
+
+      if (settings.lastAutoZoneDate === expectedDate) {
+        return;
+      }
+
+      const dailyZoneIds = routineData.zones
+        .filter((zone) => zone.frequency === "daily")
+        .map((zone) => zone.id);
+
+      if (dailyZoneIds.length === 0) {
+        return;
+      }
+
+      const nextSettings = normalizeSettings(
+        {
+          ...settings,
+          currentZoneIds: dailyZoneIds,
+          currentZoneId: dailyZoneIds[0] ?? settings.currentZoneId,
+          lastAutoZoneDate: expectedDate,
+        },
+        routineData.zones,
+      );
+
+      saveSettings(nextSettings);
+      setSettings(nextSettings);
+    };
+
+    autoSelectDailyZones();
+
+    const intervalId = setInterval(() => {
+      autoSelectDailyZones();
+
+      setDailyLog((currentLog) => {
+        const expectedDate = getCleaningDate(settings.resetTime);
+
+        if (!currentLog || currentLog.date === expectedDate) {
+          return currentLog;
+        }
+
+        return getTodayLog(todayTasks, settings);
+      });
+    }, 30_000);
+
+    return () => clearInterval(intervalId);
+  }, [isReady, settings, todayTasks, routineData.zones]);
+
   const updateSettings = useCallback(
     (updates: Partial<Settings>) => {
       setSettings((currentSettings) => {

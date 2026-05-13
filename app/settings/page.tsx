@@ -27,7 +27,7 @@ export default function SettingsPage() {
         <section className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
           <h2 className="text-lg font-black text-stone-950">Daily reset</h2>
           <p className="mt-2 text-sm leading-6 text-stone-600">
-            A checklist belongs to the cleaning day. The default 3:00 AM reset keeps
+            A checklist belongs to the cleaning day. The default 1:00 AM reset keeps
             late-night evening routines on the previous day.
           </p>
           <label

@@ -91,7 +91,7 @@ export default function ZonesPage() {
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
                     Zone {zone.sortOrder}
-                    {scheduleStatus.needsReminder ? (
+                    {isSelected && zone.frequency === "daily" ? null : scheduleStatus.needsReminder ? (
                       <span className="ml-2 rounded-full bg-amber-100 px-2 py-1 text-[0.65rem] tracking-wide text-amber-800">
                         {scheduleStatus.message}
                       </span>

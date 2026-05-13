@@ -57,6 +57,7 @@ export type Settings = {
   currentZoneId: string;
   scheduledZoneDates: Record<string, string[]>;
   firstRunComplete: boolean;
+  lastAutoZoneDate?: string;
 };
 
 export type EditableRoutineData = {
