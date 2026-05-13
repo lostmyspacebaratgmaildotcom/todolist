@@ -4,8 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import { routineBlocks } from "@/lib/data";
-import type { Zone, ZoneFrequency } from "@/lib/types";
+import type { Task, TaskCadence, Zone, ZoneFrequency } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [
@@ -30,7 +29,10 @@ export default function ZonesPage() {
   const completedTaskIds = new Set(dailyLog?.completedTaskIds ?? []);
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [expandedZoneId, setExpandedZoneId] = useState<string | null>(null);
+  const [expandedCadence, setExpandedCadence] = useState<{
+    zoneId: string;
+    cadence: TaskCadence;
+  } | null>(null);
   const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -46,9 +48,6 @@ export default function ZonesPage() {
 
   function cancelEdit() {
     setEditingZoneId(null);
-    setEditName("");
-    setEditDescription("");
-    setEditFrequency("daily");
   }
 
   function saveEdit() {
@@ -66,6 +65,17 @@ export default function ZonesPage() {
     if (zones.length <= 1) return;
     if (window.confirm(`Delete ${zone.name}?`)) {
       deleteZone(zone.id);
+    }
+  }
+
+  function toggleCadence(zoneId: string, cadence: TaskCadence) {
+    if (
+      expandedCadence?.zoneId === zoneId &&
+      expandedCadence?.cadence === cadence
+    ) {
+      setExpandedCadence(null);
+    } else {
+      setExpandedCadence({ zoneId, cadence });
     }
   }
 
@@ -88,23 +98,25 @@ export default function ZonesPage() {
       <div className="space-y-4">
         {zones.map((zone) => {
           const isSelected = selectedZoneIds.includes(zone.id);
-          const zoneTasks = routineTasks.filter((task) => task.zoneId === zone.id);
-          const totalMinutes = zoneTasks.reduce(
-            (sum, task) => sum + task.estimatedMinutes,
+          const zoneTasks = routineTasks.filter(
+            (task) => task.zoneId === zone.id,
+          );
+          const dailyTasks = zoneTasks.filter(
+            (t) => !t.cadence || t.cadence === "daily",
+          );
+          const weeklyTasks = zoneTasks.filter((t) => t.cadence === "weekly");
+          const monthlyTasks = zoneTasks.filter((t) => t.cadence === "monthly");
+          const seasonalTasks = zoneTasks.filter(
+            (t) => t.cadence === "seasonal",
+          );
+          const dailyMinutes = dailyTasks.reduce(
+            (s, t) => s + t.estimatedMinutes,
             0,
           );
-          const completedZoneTasks = zoneTasks.filter((task) =>
-            completedTaskIds.has(task.id),
-          );
-          const allDone =
-            zoneTasks.length > 0 &&
-            completedZoneTasks.length === zoneTasks.length;
-          const someDone = completedZoneTasks.length > 0 && !allDone;
+          const allDailyDone =
+            dailyTasks.length > 0 &&
+            dailyTasks.every((t) => completedTaskIds.has(t.id));
 
-          const status = getZoneStatus(zone, isSelected, allDone, someDone);
-          const lastReset = getLastReset(allDone, someDone);
-
-          const isExpanded = expandedZoneId === zone.id;
           const isMenuOpen = openMenuId === zone.id;
           const isEditing = editingZoneId === zone.id;
 
@@ -187,39 +199,15 @@ export default function ZonesPage() {
                 <>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-3">
-                        <h2 className="text-xl font-black text-stone-950">
-                          {zone.name}
-                        </h2>
-                        <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wide ${statusStyle(status)}`}
-                        >
-                          {status}
-                        </span>
-                      </div>
-
-                      <dl className="mt-3 space-y-1 text-sm text-stone-600">
-                        <div className="flex gap-2">
-                          <dt className="font-bold text-stone-500">Today:</dt>
-                          <dd className="font-semibold">
-                            {zoneTasks.length} task
-                            {zoneTasks.length === 1 ? "" : "s"}, {totalMinutes}{" "}
-                            min
-                          </dd>
-                        </div>
-                        <div className="flex gap-2">
-                          <dt className="font-bold text-stone-500">Frequency:</dt>
-                          <dd className="font-semibold">
-                            {formatZoneFrequency(zone.frequency)}
-                          </dd>
-                        </div>
-                        <div className="flex gap-2">
-                          <dt className="font-bold text-stone-500">Last reset:</dt>
-                          <dd className="font-semibold">{lastReset}</dd>
-                        </div>
-                      </dl>
+                      <h2 className="text-xl font-black text-stone-950">
+                        {zone.name}
+                      </h2>
+                      <p className="mt-1 text-sm font-semibold text-stone-600">
+                        {dailyTasks.length} task
+                        {dailyTasks.length === 1 ? "" : "s"} today,{" "}
+                        {dailyMinutes} min
+                      </p>
                     </div>
-
                     <div className="relative shrink-0">
                       <button
                         type="button"
@@ -274,95 +262,90 @@ export default function ZonesPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex gap-2">
-                    {isSelected ? (
+                  <div className="mt-4 space-y-2">
+                    <CadenceRow
+                      label="Daily reset"
+                      status={
+                        allDailyDone
+                          ? "Done today"
+                          : isSelected
+                            ? "Active"
+                            : "Due today"
+                      }
+                      tasks={dailyTasks}
+                      isExpanded={
+                        expandedCadence?.zoneId === zone.id &&
+                        expandedCadence?.cadence === "daily"
+                      }
+                      showViewTasks={isSelected}
+                      onToggle={() => toggleCadence(zone.id, "daily")}
+                      completedTaskIds={completedTaskIds}
+                    />
+                    {weeklyTasks.length > 0 ? (
+                      <CadenceRow
+                        label="Weekly care"
+                        status="Due this week"
+                        tasks={weeklyTasks}
+                        isExpanded={
+                          expandedCadence?.zoneId === zone.id &&
+                          expandedCadence?.cadence === "weekly"
+                        }
+                        showViewTasks={isSelected}
+                        onToggle={() => toggleCadence(zone.id, "weekly")}
+                        completedTaskIds={completedTaskIds}
+                      />
+                    ) : null}
+                    {monthlyTasks.length > 0 ? (
+                      <CadenceRow
+                        label="Monthly care"
+                        status="Due this month"
+                        tasks={monthlyTasks}
+                        isExpanded={
+                          expandedCadence?.zoneId === zone.id &&
+                          expandedCadence?.cadence === "monthly"
+                        }
+                        showViewTasks={isSelected}
+                        onToggle={() => toggleCadence(zone.id, "monthly")}
+                        completedTaskIds={completedTaskIds}
+                      />
+                    ) : null}
+                    {seasonalTasks.length > 0 ? (
+                      <CadenceRow
+                        label="Seasonal projects"
+                        status="Due this quarter"
+                        tasks={seasonalTasks}
+                        isExpanded={
+                          expandedCadence?.zoneId === zone.id &&
+                          expandedCadence?.cadence === "seasonal"
+                        }
+                        showViewTasks={isSelected}
+                        onToggle={() => toggleCadence(zone.id, "seasonal")}
+                        completedTaskIds={completedTaskIds}
+                      />
+                    ) : null}
+                  </div>
+
+                  {!isSelected ? (
+                    <div className="mt-4">
                       <button
                         type="button"
-                        className="min-h-12 flex-1 rounded-2xl bg-emerald-100 px-4 text-sm font-black text-emerald-900"
+                        onClick={() => addZoneToday(zone.id)}
+                        className="min-h-12 w-full rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
+                      >
+                        Start {zone.name.toLowerCase()} reset
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        className="min-h-12 w-full rounded-2xl bg-emerald-100 px-4 text-sm font-black text-emerald-900"
                         disabled
                       >
                         {zone.name} reset started
                       </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => addZoneToday(zone.id)}
-                        className="min-h-12 flex-1 rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
-                      >
-                        Start {zone.name.toLowerCase()} reset
-                      </button>
-                    )}
-                    {isSelected ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedZoneId(isExpanded ? null : zone.id)
-                        }
-                        aria-label={isExpanded ? "Hide tasks" : "View tasks"}
-                        className={`flex min-h-12 items-center gap-2 rounded-2xl px-4 text-sm font-black transition ${
-                          isExpanded
-                            ? "bg-stone-200 text-stone-700"
-                            : "bg-stone-100 text-stone-800 hover:bg-stone-200"
-                        }`}
-                      >
-                        <svg
-                          aria-hidden="true"
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          viewBox="0 0 24 24"
-                        >
-                          {isExpanded ? (
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
-                          ) : (
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                          )}
-                        </svg>
-                      </button>
-                    ) : null}
-                  </div>
-
-                  {isExpanded ? (
-                    <div className="mt-4">
-                      {zoneTasks.length > 0 ? (
-                        <ul className="space-y-2">
-                          {zoneTasks.map((task) => {
-                            const blockName =
-                              routineBlocks.find(
-                                (block) => block.id === task.block,
-                              )?.name ?? task.block;
-                            const isDone = completedTaskIds.has(task.id);
-
-                            return (
-                              <li
-                                key={task.id}
-                                className={`rounded-2xl px-3 py-2 ${isDone ? "bg-emerald-50" : "bg-stone-50"}`}
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <span
-                                    className={`text-sm font-black ${isDone ? "text-emerald-700 line-through" : "text-stone-800"}`}
-                                  >
-                                    {task.title}
-                                  </span>
-                                  <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wide text-stone-500 ring-1 ring-stone-200">
-                                    {blockName}
-                                  </span>
-                                </div>
-                                <p className="mt-1 text-xs font-semibold text-stone-500">
-                                  {task.estimatedMinutes} min
-                                </p>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      ) : (
-                        <p className="rounded-2xl bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-600">
-                          No tasks assigned. Add tasks from Manage.
-                        </p>
-                      )}
                     </div>
-                  ) : null}
+                  )}
                 </>
               )}
             </article>
@@ -373,42 +356,97 @@ export default function ZonesPage() {
   );
 }
 
-function getZoneStatus(
-  zone: Zone,
-  isSelected: boolean,
-  allDone: boolean,
-  someDone: boolean,
-): string {
-  if (allDone) return "Done today";
-  if (!isSelected && zone.frequency === "daily") return "Skipped today";
-  if (!isSelected) return "Coming up";
-  if (someDone) return "Due today";
-  return "Due today";
+function CadenceRow({
+  label,
+  status,
+  tasks,
+  isExpanded,
+  showViewTasks,
+  onToggle,
+  completedTaskIds,
+}: {
+  label: string;
+  status: string;
+  tasks: Task[];
+  isExpanded: boolean;
+  showViewTasks: boolean;
+  onToggle: () => void;
+  completedTaskIds: Set<string>;
+}) {
+  return (
+    <div className="rounded-2xl bg-stone-50 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-black text-stone-800">{label}</span>
+          <span className={`rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide ${cadenceStatusStyle(status)}`}>
+            {status}
+          </span>
+        </div>
+        {showViewTasks ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={isExpanded ? "Hide tasks" : "View tasks"}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-stone-500 transition hover:bg-stone-200"
+          >
+            <svg
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              viewBox="0 0 24 24"
+            >
+              {isExpanded ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              )}
+            </svg>
+          </button>
+        ) : null}
+      </div>
+      {isExpanded ? (
+        <ul className="mt-2 space-y-1.5">
+          {tasks.map((task) => {
+            const isDone = completedTaskIds.has(task.id);
+            return (
+              <li
+                key={task.id}
+                className={`flex items-center justify-between rounded-xl px-2.5 py-1.5 ${isDone ? "bg-emerald-100" : "bg-white"}`}
+              >
+                <span
+                  className={`text-sm font-semibold ${isDone ? "text-emerald-700 line-through" : "text-stone-700"}`}
+                >
+                  {task.title}
+                </span>
+                <span className="text-xs font-semibold text-stone-400">
+                  {task.estimatedMinutes} min
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  );
 }
 
-function getLastReset(allDone: boolean, someDone: boolean): string {
-  if (allDone || someDone) return "Today";
-  return "Yesterday";
-}
-
-function statusStyle(status: string): string {
+function cadenceStatusStyle(status: string): string {
   switch (status) {
+    case "Active":
+      return "bg-emerald-100 text-emerald-800";
     case "Done today":
       return "bg-emerald-100 text-emerald-800";
     case "Due today":
       return "bg-amber-100 text-amber-800";
-    case "Coming up":
+    case "Due this week":
       return "bg-sky-100 text-sky-800";
-    case "Skipped today":
-      return "bg-stone-100 text-stone-600";
+    case "Due this month":
+      return "bg-violet-100 text-violet-800";
+    case "Due this quarter":
+      return "bg-orange-100 text-orange-800";
     default:
       return "bg-stone-100 text-stone-600";
   }
-}
-
-function formatZoneFrequency(frequency: string): string {
-  if (frequency === "weekly") return "Weekly";
-  if (frequency === "monthly") return "Monthly";
-  if (frequency === "once") return "Once";
-  return "Daily";
 }

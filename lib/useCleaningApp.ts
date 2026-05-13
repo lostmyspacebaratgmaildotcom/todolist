@@ -514,6 +514,7 @@ export function useCleaningApp() {
       block: RoutineBlockId;
       estimatedMinutes: number;
       zoneId?: string;
+      cadence?: Task["cadence"];
     }) => {
       const title = input.title.trim();
 
@@ -529,6 +530,7 @@ export function useCleaningApp() {
         title,
         zoneId: input.zoneId || undefined,
         block: input.block,
+        cadence: input.cadence || "daily",
         estimatedMinutes: Math.max(1, Math.round(input.estimatedMinutes || 1)),
         required: true,
         sortOrder:
@@ -577,6 +579,7 @@ export function useCleaningApp() {
         block: RoutineBlockId;
         estimatedMinutes: number;
         zoneId?: string;
+        cadence?: Task["cadence"];
       },
     ) => {
       const title = input.title.trim();
@@ -603,6 +606,7 @@ export function useCleaningApp() {
               ...task,
               title,
               block: input.block,
+              cadence: input.cadence || task.cadence,
               zoneId: input.zoneId || undefined,
               estimatedMinutes: Math.max(1, Math.round(input.estimatedMinutes || 1)),
               sortOrder: nextSortOrder,
@@ -727,7 +731,12 @@ function uniqueZoneIds(zoneIds: string[], validZoneIds: Set<string>): string[] {
 function filterTasksForToday(tasks: Task[], selectedZoneIds: string[]): Task[] {
   const selectedZones = new Set(selectedZoneIds);
 
-  return tasks.filter((task) => task.zoneId && selectedZones.has(task.zoneId));
+  return tasks.filter(
+    (task) =>
+      task.zoneId &&
+      selectedZones.has(task.zoneId) &&
+      (!task.cadence || task.cadence === "daily"),
+  );
 }
 
 function recalculateLogForTasks(log: DailyLog, tasks: Task[]): DailyLog {
