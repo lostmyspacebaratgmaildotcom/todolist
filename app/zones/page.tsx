@@ -274,36 +274,65 @@ export default function ZonesPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4">
-                    {allDone ? (
+                  <div className="mt-4 flex gap-2">
+                    {isSelected ? (
                       <button
                         type="button"
-                        onClick={() =>
-                          setExpandedZoneId(isExpanded ? null : zone.id)
-                        }
-                        className="min-h-12 w-full rounded-2xl bg-stone-100 px-4 text-sm font-black text-stone-800 transition hover:bg-stone-200"
+                        className="min-h-12 flex-1 rounded-2xl bg-emerald-100 px-4 text-sm font-black text-emerald-900"
+                        disabled
                       >
-                        {isExpanded ? "Hide tasks" : "View tasks"}
-                      </button>
-                    ) : isSelected ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedZoneId(isExpanded ? null : zone.id)
-                        }
-                        className="min-h-12 w-full rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
-                      >
-                        {isExpanded ? "Hide tasks" : `Start ${zone.name.toLowerCase()} reset`}
+                        {zone.name} reset started
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={() => addZoneToday(zone.id)}
-                        className="min-h-12 w-full rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
+                        className="min-h-12 flex-1 rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
                       >
                         Start {zone.name.toLowerCase()} reset
                       </button>
                     )}
+                    {isSelected ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedZoneId(isExpanded ? null : zone.id)
+                        }
+                        aria-label={isExpanded ? "Hide tasks" : "View tasks"}
+                        className={`flex min-h-12 items-center gap-2 rounded-2xl px-4 text-sm font-black transition ${
+                          isExpanded
+                            ? "bg-stone-200 text-stone-700"
+                            : "bg-stone-100 text-stone-800 hover:bg-stone-200"
+                        }`}
+                      >
+                        {isExpanded ? (
+                          <svg
+                            aria-hidden="true"
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+                          </svg>
+                        ) : (
+                          <>
+                            <svg
+                              aria-hidden="true"
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                            </svg>
+                            <span>View tasks</span>
+                          </>
+                        )}
+                      </button>
+                    ) : null}
                   </div>
 
                   {isExpanded ? (
