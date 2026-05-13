@@ -510,7 +510,8 @@ function CadenceSection({
                       {task.title}
                     </p>
                     <p className="mt-0.5 text-xs font-semibold text-stone-500">
-                      {task.estimatedMinutes} min
+                      {task.estimatedMinutes} min &middot;{" "}
+                      {routineBlocks.find((b) => b.id === task.block)?.name ?? task.block}
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1.5">
