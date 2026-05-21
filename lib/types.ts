@@ -76,7 +76,11 @@ export type Settings = {
   lastAutoZoneDate?: string;
 };
 
-export type ZoneScheduleCadenceContext = "monthly" | "seasonal" | "zone";
+export type ZoneScheduleCadenceContext =
+  | "monthly"
+  | "seasonal"
+  | "weekly"
+  | "zone";
 
 export type EditableRoutineData = {
   zones: Zone[];

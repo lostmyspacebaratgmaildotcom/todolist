@@ -32,6 +32,9 @@ import type {
   ZoneScheduleCadenceContext,
 } from "./types";
 
+/** Weekly schedule UI is anchored on the Kitchen zone card (see Zones page). */
+const WEEKLY_SCHEDULE_ANCHOR_ZONE_ID = "kitchen";
+
 export function useCleaningApp() {
   const [isReady, setIsReady] = useState(false);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -264,26 +267,51 @@ export function useCleaningApp() {
         const calendarToday = getLocalCalendarDate();
         const reflectsOnTodayTab =
           isoDate === calendarToday || isoDate === cleaningToday;
-        const nextZoneIds = reflectsOnTodayTab
-          ? Array.from(new Set([...currentSettings.currentZoneIds, zoneId]))
-          : currentSettings.currentZoneIds;
+
+        let nextZoneIds = currentSettings.currentZoneIds;
+        if (reflectsOnTodayTab) {
+          if (context === "weekly") {
+            const merged = new Set(currentSettings.currentZoneIds);
+            merged.add(zoneId);
+            for (const task of routineData.tasks) {
+              if (task.active && task.cadence === "weekly" && task.zoneId) {
+                merged.add(task.zoneId);
+              }
+            }
+            nextZoneIds = Array.from(merged);
+          } else {
+            nextZoneIds = Array.from(
+              new Set([...currentSettings.currentZoneIds, zoneId]),
+            );
+          }
+        }
 
         const mergedUpcoming = {
           ...(currentSettings.upcomingTaskDates ?? {}),
         };
         let changedUpcoming = false;
-        for (const task of routineData.tasks) {
-          if (!task.active || task.zoneId !== zoneId) {
-            continue;
-          }
-          const cadence = task.cadence ?? "daily";
-          const shouldSyncDueWithSchedule =
-            (context === "monthly" && cadence === "monthly") ||
-            (context === "seasonal" && cadence === "seasonal") ||
-            (context === "zone" && (cadence === "monthly" || cadence === "seasonal"));
-          if (shouldSyncDueWithSchedule) {
+        if (context === "weekly") {
+          for (const task of routineData.tasks) {
+            if (!task.active || task.cadence !== "weekly") {
+              continue;
+            }
             mergedUpcoming[task.id] = isoDate;
             changedUpcoming = true;
+          }
+        } else {
+          for (const task of routineData.tasks) {
+            if (!task.active || task.zoneId !== zoneId) {
+              continue;
+            }
+            const cadence = task.cadence ?? "daily";
+            const shouldSyncDueWithSchedule =
+              (context === "monthly" && cadence === "monthly") ||
+              (context === "seasonal" && cadence === "seasonal") ||
+              (context === "zone" && (cadence === "monthly" || cadence === "seasonal"));
+            if (shouldSyncDueWithSchedule) {
+              mergedUpcoming[task.id] = isoDate;
+              changedUpcoming = true;
+            }
           }
         }
 
@@ -960,7 +988,7 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
 
   const lastZoneScheduleByCadence = Object.fromEntries(
     Object.entries(mergedLastByCadence).filter(([key, date]) => {
-      const match = /^([^:]+):(monthly|seasonal|zone)$/.exec(key);
+      const match = /^([^:]+):(monthly|seasonal|zone|weekly)$/.exec(key);
       if (!match) {
         return false;
       }
@@ -972,7 +1000,12 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
         return false;
       }
 
-      if (context !== "monthly" && context !== "seasonal" && context !== "zone") {
+      if (
+        context !== "monthly" &&
+        context !== "seasonal" &&
+        context !== "zone" &&
+        context !== "weekly"
+      ) {
         return false;
       }
 
@@ -1058,7 +1091,20 @@ function filterTasksForToday(
     }
 
     if (cadence === "weekly") {
-      return false;
+      const pickKey = `${WEEKLY_SCHEDULE_ANCHOR_ZONE_ID}:weekly`;
+      const scheduledPick = ctx.lastZoneScheduleByCadence[pickKey];
+      if (
+        typeof scheduledPick === "string" &&
+        scheduledPick === ctx.calendarToday
+      ) {
+        return true;
+      }
+      const due = ctx.upcomingTaskDates[task.id];
+      if (!due) {
+        return false;
+      }
+
+      return ctx.cleaningDate >= due;
     }
 
     if (cadence === "monthly" || cadence === "seasonal") {

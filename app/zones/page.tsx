@@ -66,6 +66,11 @@ export default function ZonesPage() {
   const showKitchenWeeklyBlock =
     zones.some((candidate) => candidate.id === weeklyAnchorZoneId) &&
     allWeeklyTasks.length > 0;
+  const lastWeeklyPick = readCadenceSchedulePick(
+    settings.lastZoneScheduleByCadence,
+    weeklyAnchorZoneId,
+    "weekly",
+  );
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [expandedCadence, setExpandedCadence] = useState<{
@@ -397,7 +402,11 @@ export default function ZonesPage() {
                     {zone.id === weeklyAnchorZoneId && showKitchenWeeklyBlock ? (
                       <CadenceRow
                         label="Weekly care"
-                        status="Due this week"
+                        status={
+                          lastWeeklyPick
+                            ? scheduledOnBlurb(lastWeeklyPick)
+                            : "Due this week"
+                        }
                         tasks={allWeeklyTasks}
                         isExpanded={
                           expandedCadence?.zoneId === weeklyAnchorZoneId &&
@@ -406,6 +415,10 @@ export default function ZonesPage() {
                         showViewTasks={weeklyTasksViewable}
                         onToggle={() => toggleCadence(weeklyAnchorZoneId, "weekly")}
                         completedTaskIds={completedTaskIds}
+                        onSchedule={() =>
+                          openScheduleDialog(weeklyAnchorZoneId, "weekly")
+                        }
+                        scheduleAriaLabel="Schedule weekly care"
                       />
                     ) : null}
                     {monthlyTasks.length > 0 || seasonalTasks.length > 0 ? (
