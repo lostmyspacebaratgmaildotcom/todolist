@@ -176,10 +176,6 @@ export default function ZonesPage() {
             (s, t) => s + t.estimatedMinutes,
             0,
           );
-          const allDailyDone =
-            dailyTasks.length > 0 &&
-            dailyTasks.every((t) => completedTaskIds.has(t.id));
-
           const isMenuOpen = openMenuId === zone.id;
           const isEditing = editingZoneId === zone.id;
 
@@ -379,13 +375,7 @@ export default function ZonesPage() {
                   <div className="mt-4 space-y-2">
                     <CadenceRow
                       label="Daily reset"
-                      status={
-                        allDailyDone
-                          ? "Done today"
-                          : showScheduledZoneState && zoneScheduledSummaryIso
-                            ? scheduledOnBlurb(zoneScheduledSummaryIso)
-                            : "Active"
-                      }
+                      status="Active"
                       tasks={dailyResetTasks}
                       isExpanded={
                         expandedCadence?.zoneId === zone.id &&
@@ -483,15 +473,6 @@ export default function ZonesPage() {
                     ) : null}
                   </div>
 
-                  {monthlyTasks.length === 0 && seasonalTasks.length === 0 ? (
-                    <div className="mt-4">
-                      <ZoneScheduleIconButton
-                        layout="full"
-                        ariaLabel={`Schedule ${zone.name}`}
-                        onClick={() => openScheduleDialog(zone.id, "zone")}
-                      />
-                    </div>
-                  ) : null}
                 </>
               )}
             </article>
