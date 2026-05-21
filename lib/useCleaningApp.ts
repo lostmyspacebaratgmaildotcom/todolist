@@ -260,9 +260,21 @@ export function useCleaningApp() {
       }
 
       setSettings((currentSettings) => {
+        const today = getCleaningDate(currentSettings.resetTime);
+        const forCleaningToday = isoDate === today;
+        const nextZoneIds = forCleaningToday
+          ? Array.from(new Set([...currentSettings.currentZoneIds, zoneId]))
+          : currentSettings.currentZoneIds;
+
         const nextSettings = normalizeSettings(
           {
             ...currentSettings,
+            ...(forCleaningToday
+              ? {
+                  currentZoneId: nextZoneIds[0] ?? currentSettings.currentZoneId,
+                  currentZoneIds: nextZoneIds,
+                }
+              : {}),
             scheduledZoneDates: addScheduledZoneDate(
               currentSettings.scheduledZoneDates,
               zoneId,
