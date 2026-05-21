@@ -152,6 +152,18 @@ export default function ZonesPage() {
             !isSelected &&
             (Boolean(nextFutureSchedule) || scheduledForTodayNotStarted);
 
+          const upcomingDates = settings.upcomingTaskDates ?? {};
+          const monthlyUpcomingScheduled = cadenceTasksQueuedForLater(
+            monthlyTasks,
+            cleaningDate,
+            upcomingDates,
+          );
+          const seasonalUpcomingScheduled = cadenceTasksQueuedForLater(
+            seasonalTasks,
+            cleaningDate,
+            upcomingDates,
+          );
+
           return (
             <Fragment key={zone.id}>
             <article
@@ -341,7 +353,7 @@ export default function ZonesPage() {
                           <CadenceRow
                             label="Monthly care"
                             status={
-                              showScheduledZoneState
+                              showScheduledZoneState || monthlyUpcomingScheduled
                                 ? "Scheduled"
                                 : "Due this month"
                             }
@@ -361,7 +373,7 @@ export default function ZonesPage() {
                           <CadenceRow
                             label="Seasonal projects"
                             status={
-                              showScheduledZoneState
+                              showScheduledZoneState || seasonalUpcomingScheduled
                                 ? "Scheduled"
                                 : "Due this quarter"
                             }
@@ -519,6 +531,26 @@ export default function ZonesPage() {
       ) : null}
     </AppShell>
   );
+}
+
+
+function cadenceTasksQueuedForLater(
+  tasks: Task[],
+  cleaningDate: string,
+  upcomingDates: Record<string, string>,
+): boolean {
+  if (tasks.length === 0) {
+    return false;
+  }
+
+  return tasks.every((task) => {
+    const due = upcomingDates[task.id];
+    if (typeof due !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(due)) {
+      return false;
+    }
+
+    return cleaningDate < due;
+  });
 }
 
 function ZoneScheduleIconButton({
