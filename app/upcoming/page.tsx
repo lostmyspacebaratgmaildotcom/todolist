@@ -13,7 +13,7 @@ import { sortTasks } from "@/lib/progress";
 import type { Task } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
-/** `YYYY-MM-DD` → `mm.dd.yy` for Upcoming queue pills. */
+/** `YYYY-MM-DD` → `dd.mm.yy` for Upcoming queue pills. */
 function formatQueuedPillDate(isoDate: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
   if (!match) {
@@ -22,17 +22,11 @@ function formatQueuedPillDate(isoDate: string): string {
 
   const [, year, month, day] = match;
 
-  return `${month}.${day}.${year.slice(-2)}`;
+  return `${day}.${month}.${year.slice(-2)}`;
 }
 
 export default function UpcomingPage() {
-  const {
-    isReady,
-    zones,
-    routineTasks,
-    settings,
-    updateUpcomingTaskDate,
-  } = useCleaningApp();
+  const { isReady, zones, routineTasks, settings } = useCleaningApp();
 
   const cleaningDate = useMemo(
     () => getCleaningDate(settings.resetTime),
@@ -78,7 +72,6 @@ export default function UpcomingPage() {
             cleaningDate={cleaningDate}
             upcomingTaskDates={settings.upcomingTaskDates ?? {}}
             zoneNameById={zoneNameById}
-            onChangeDue={updateUpcomingTaskDate}
           />
           <CadenceQueue
             title="Seasonal projects"
@@ -86,7 +79,6 @@ export default function UpcomingPage() {
             cleaningDate={cleaningDate}
             upcomingTaskDates={settings.upcomingTaskDates ?? {}}
             zoneNameById={zoneNameById}
-            onChangeDue={updateUpcomingTaskDate}
           />
         </div>
       )}
@@ -100,14 +92,12 @@ function CadenceQueue({
   cleaningDate,
   upcomingTaskDates,
   zoneNameById,
-  onChangeDue,
 }: {
   title: string;
   tasks: Task[];
   cleaningDate: string;
   upcomingTaskDates: Record<string, string>;
   zoneNameById: Map<string, string>;
-  onChangeDue: (taskId: string, isoDate: string) => void;
 }) {
   if (tasks.length === 0) {
     return null;
@@ -142,26 +132,16 @@ function CadenceQueue({
                     {task.estimatedMinutes} min
                   </p>
                 </div>
-                <label
-                  htmlFor={`due-${task.id}`}
-                  className={`relative inline-flex shrink-0 cursor-pointer select-none overflow-hidden rounded-full ring-1 transition hover:opacity-95 ${
+                <span
+                  className={`inline-flex shrink-0 select-none rounded-full px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-wide ring-1 ${
                     onToday
                       ? "bg-emerald-100 text-emerald-950 ring-emerald-200"
                       : "bg-violet-100 text-violet-950 ring-violet-200"
                   }`}
-                  aria-label={`Change next date for ${task.title}, currently ${due}`}
+                  aria-label={`Queued for ${due}`}
                 >
-                  <span className="pointer-events-none px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-wide">
-                    QUEUED ({pillDate})
-                  </span>
-                  <input
-                    id={`due-${task.id}`}
-                    type="date"
-                    value={due}
-                    onChange={(event) => onChangeDue(task.id, event.target.value)}
-                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:light] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
-                  />
-                </label>
+                  QUEUED ({pillDate})
+                </span>
               </div>
             </li>
           );
