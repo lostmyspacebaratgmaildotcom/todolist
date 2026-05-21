@@ -63,8 +63,6 @@ export type Settings = {
   currentZoneIds: string[];
   currentZoneId: string;
   scheduledZoneDates: Record<string, string[]>;
-  /** zoneId -> calendar quarter key (YYYY-Q1..Q4) when seasonal projects were skipped */
-  seasonalSkips: Record<string, string>;
   firstRunComplete: boolean;
   lastAutoZoneDate?: string;
 };

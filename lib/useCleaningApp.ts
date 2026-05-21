@@ -7,7 +7,7 @@ import {
   templates,
   zones as defaultZones,
 } from "./data";
-import { formatLocalDate, getCleaningDate, getSeasonQuarterKey } from "./date";
+import { formatLocalDate, getCleaningDate } from "./date";
 import { calculateCompletions, calculateDailyCompletion } from "./progress";
 import {
   clearLocalData,
@@ -113,19 +113,13 @@ export function useCleaningApp() {
         return;
       }
 
-      const dailyZoneIds = routineData.zones
-        .filter((zone) => zone.frequency === "daily")
-        .map((zone) => zone.id);
-
-      if (dailyZoneIds.length === 0) {
-        return;
-      }
-
       const nextSettings = normalizeSettings(
         {
           ...settings,
-          currentZoneIds: dailyZoneIds,
-          currentZoneId: dailyZoneIds[0] ?? settings.currentZoneId,
+          currentZoneIds:
+            settings.lastAutoZoneDate !== undefined
+              ? []
+              : settings.currentZoneIds,
           lastAutoZoneDate: expectedDate,
         },
         routineData.zones,
@@ -219,6 +213,31 @@ export function useCleaningApp() {
 
         saveSettings(nextSettings);
 
+        return nextSettings;
+      });
+    },
+    [routineData.zones],
+  );
+
+  const scheduleZoneForDate = useCallback(
+    (zoneId: string, isoDate: string) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+        return;
+      }
+
+      setSettings((currentSettings) => {
+        const nextSettings = normalizeSettings(
+          {
+            ...currentSettings,
+            scheduledZoneDates: addScheduledZoneDate(
+              currentSettings.scheduledZoneDates,
+              zoneId,
+              isoDate,
+            ),
+          },
+          routineData.zones,
+        );
+        saveSettings(nextSettings);
         return nextSettings;
       });
     },
@@ -450,12 +469,9 @@ export function useCleaningApp() {
         nextTasks,
         nextSettings.currentZoneIds,
       );
-      const remainingSeasonalSkips = { ...nextSettings.seasonalSkips };
-      delete remainingSeasonalSkips[zoneId];
       const settingsWithoutDeletedZone = {
         ...nextSettings,
         scheduledZoneDates: remainingScheduledZoneDates,
-        seasonalSkips: remainingSeasonalSkips,
       };
 
       saveRoutineData(nextRoutineData);
@@ -634,27 +650,6 @@ export function useCleaningApp() {
     [reconcileDailyLogForTasks, routineData, settings.currentZoneIds],
   );
 
-  const skipSeasonForZone = useCallback(
-    (zoneId: string) => {
-      setSettings((currentSettings) => {
-        const quarterKey = getSeasonQuarterKey(
-          getCleaningDate(currentSettings.resetTime),
-        );
-        const nextSeasonalSkips = {
-          ...(currentSettings.seasonalSkips ?? {}),
-          [zoneId]: quarterKey,
-        };
-        const nextSettings = normalizeSettings(
-          { ...currentSettings, seasonalSkips: nextSeasonalSkips },
-          routineData.zones,
-        );
-        saveSettings(nextSettings);
-        return nextSettings;
-      });
-    },
-    [routineData.zones],
-  );
-
   const clearAllLocalData = useCallback(() => {
     clearLocalData();
     const nextSettings = defaultSettings;
@@ -689,8 +684,8 @@ export function useCleaningApp() {
     addZoneToday,
     removeZoneToday,
     scheduleZoneTomorrow,
+    scheduleZoneForDate,
     removeZoneTomorrow,
-    skipSeasonForZone,
     startTemplate,
     setTaskCompleted,
     resetToday,
@@ -738,15 +733,6 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
       ]),
   );
 
-  const seasonalSkips = Object.fromEntries(
-    Object.entries(settings.seasonalSkips ?? {}).filter(
-      ([zoneId, quarterKey]) =>
-        validZoneIds.has(zoneId) &&
-        typeof quarterKey === "string" &&
-        /^\d{4}-Q[1-4]$/.test(quarterKey),
-    ),
-  );
-
   return {
     ...defaultSettings,
     ...settings,
@@ -754,7 +740,6 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
     currentZoneIds,
     currentZoneId,
     scheduledZoneDates,
-    seasonalSkips,
   };
 }
 

@@ -36,12 +36,3 @@ function parseResetTime(resetTime: string): [number, number] {
   return [Number(hour), Number(minute)];
 }
 
-export function getSeasonQuarterKey(cleaningDateYmd: string): string {
-  const [yearRaw, monthRaw] = cleaningDateYmd.split("-").map(Number);
-  const year = yearRaw;
-  const month = monthRaw;
-  const quarter = month <= 3 ? 1 : month <= 6 ? 2 : month <= 9 ? 3 : 4;
-
-  return `${year}-Q${quarter}`;
-}
-
