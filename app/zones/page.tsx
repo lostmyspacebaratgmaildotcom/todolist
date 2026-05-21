@@ -300,33 +300,46 @@ export default function ZonesPage() {
                       onToggle={() => toggleCadence(zone.id, "daily")}
                       completedTaskIds={completedTaskIds}
                     />
-                    {monthlyTasks.length > 0 ? (
-                      <CadenceRow
-                        label="Monthly care"
-                        status="Due this month"
-                        tasks={monthlyTasks}
-                        isExpanded={
-                          expandedCadence?.zoneId === zone.id &&
-                          expandedCadence?.cadence === "monthly"
-                        }
-                        showViewTasks={isSelected}
-                        onToggle={() => toggleCadence(zone.id, "monthly")}
-                        completedTaskIds={completedTaskIds}
-                      />
-                    ) : null}
-                    {seasonalTasks.length > 0 ? (
-                      <CadenceRow
-                        label="Seasonal projects"
-                        status="Due this quarter"
-                        tasks={seasonalTasks}
-                        isExpanded={
-                          expandedCadence?.zoneId === zone.id &&
-                          expandedCadence?.cadence === "seasonal"
-                        }
-                        showViewTasks={isSelected}
-                        onToggle={() => toggleCadence(zone.id, "seasonal")}
-                        completedTaskIds={completedTaskIds}
-                      />
+                    {monthlyTasks.length > 0 || seasonalTasks.length > 0 ? (
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1 space-y-2">
+                          {monthlyTasks.length > 0 ? (
+                            <CadenceRow
+                              label="Monthly care"
+                              status="Due this month"
+                              tasks={monthlyTasks}
+                              isExpanded={
+                                expandedCadence?.zoneId === zone.id &&
+                                expandedCadence?.cadence === "monthly"
+                              }
+                              showViewTasks={isSelected}
+                              onToggle={() => toggleCadence(zone.id, "monthly")}
+                              completedTaskIds={completedTaskIds}
+                            />
+                          ) : null}
+                          {seasonalTasks.length > 0 ? (
+                            <CadenceRow
+                              label="Seasonal projects"
+                              status="Due this quarter"
+                              tasks={seasonalTasks}
+                              isExpanded={
+                                expandedCadence?.zoneId === zone.id &&
+                                expandedCadence?.cadence === "seasonal"
+                              }
+                              showViewTasks={isSelected}
+                              onToggle={() => toggleCadence(zone.id, "seasonal")}
+                              completedTaskIds={completedTaskIds}
+                            />
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openScheduleDialog(zone.id)}
+                          className="mt-0.5 shrink-0 rounded-2xl bg-stone-100 px-3 py-2 text-xs font-black text-stone-800 ring-1 ring-stone-200 transition hover:bg-stone-200"
+                        >
+                          Schedule
+                        </button>
+                      </div>
                     ) : null}
                     {adHocTasks.length > 0 ? (
                       <CadenceRow
@@ -346,7 +359,13 @@ export default function ZonesPage() {
                     ) : null}
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div
+                    className={`mt-4 grid gap-2 ${
+                      monthlyTasks.length > 0 || seasonalTasks.length > 0
+                        ? "grid-cols-1"
+                        : "grid-cols-2"
+                    }`}
+                  >
                     <button
                       type="button"
                       disabled={isSelected}
@@ -355,13 +374,15 @@ export default function ZonesPage() {
                     >
                       {isSelected ? "Started" : "Start"}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => openScheduleDialog(zone.id)}
-                      className="min-h-11 rounded-2xl bg-stone-100 px-2 text-xs font-black text-stone-800 ring-1 ring-stone-200 transition hover:bg-stone-200"
-                    >
-                      Schedule
-                    </button>
+                    {monthlyTasks.length === 0 && seasonalTasks.length === 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => openScheduleDialog(zone.id)}
+                        className="min-h-11 rounded-2xl bg-stone-100 px-2 text-xs font-black text-stone-800 ring-1 ring-stone-200 transition hover:bg-stone-200"
+                      >
+                        Schedule
+                      </button>
+                    ) : null}
                   </div>
                 </>
               )}
