@@ -2,6 +2,7 @@ import {
   defaultResetTime,
   defaultTemplateId,
   defaultZoneId,
+  tasks as seedTasks,
   zones as defaultZones,
 } from "./data";
 import { getCleaningDate } from "./date";
@@ -23,6 +24,9 @@ import type {
 const settingsKey = "apartment-reset:settings";
 const routineDataKey = "apartment-reset:routine-data";
 const logPrefix = "cleaningLog:";
+
+/** Bump when canonical routine rows (e.g. Kitchen) change so localStorage upgrades. */
+export const ROUTINE_SCHEMA_VERSION = 2;
 
 export const defaultSettings: Settings = {
   selectedTemplateId: defaultTemplateId,
@@ -84,6 +88,7 @@ export function createRoutineDataFromTemplate(
     zones: normalizeZones(zones),
     tasks: getTemplateTasks(template).map((task) => ({ ...task })),
     updatedAt: new Date().toISOString(),
+    routineSchemaVersion: ROUTINE_SCHEMA_VERSION,
   };
 }
 
@@ -105,11 +110,19 @@ export function loadRoutineData(template: RoutineTemplate): EditableRoutineData 
       return createRoutineDataFromTemplate(template);
     }
 
-    return {
+    const base: EditableRoutineData = {
       zones: normalizeZones(parsed.zones),
       tasks: parsed.tasks,
       updatedAt: parsed.updatedAt ?? new Date().toISOString(),
+      routineSchemaVersion: parsed.routineSchemaVersion,
     };
+
+    const migrated = migrateRoutineSchemaIfNeeded(base, template);
+    if (migrated !== base) {
+      saveRoutineData(migrated);
+    }
+
+    return migrated;
   } catch {
     return createRoutineDataFromTemplate(template);
   }
@@ -120,7 +133,13 @@ export function saveRoutineData(routineData: EditableRoutineData): void {
     return;
   }
 
-  window.localStorage.setItem(routineDataKey, JSON.stringify(routineData));
+  const toSave: EditableRoutineData = {
+    ...routineData,
+    routineSchemaVersion:
+      routineData.routineSchemaVersion ?? ROUTINE_SCHEMA_VERSION,
+  };
+
+  window.localStorage.setItem(routineDataKey, JSON.stringify(toSave));
 }
 
 export function getTodayLog(tasks: Task[], settings: Settings): DailyLog {
@@ -188,6 +207,30 @@ function loadDailyLog(date: string): DailyLog | null {
   } catch {
     return null;
   }
+}
+
+function migrateRoutineSchemaIfNeeded(
+  routine: EditableRoutineData,
+  template: RoutineTemplate,
+): EditableRoutineData {
+  const currentVersion = routine.routineSchemaVersion ?? 0;
+
+  if (currentVersion >= ROUTINE_SCHEMA_VERSION) {
+    return routine;
+  }
+
+  const allowedIds = new Set(template.taskIds);
+  const kitchenCanon = seedTasks.filter(
+    (task) => task.zoneId === "kitchen" && allowedIds.has(task.id),
+  );
+  const rest = routine.tasks.filter((task) => task.zoneId !== "kitchen");
+
+  return {
+    ...routine,
+    tasks: [...rest, ...kitchenCanon.map((task) => ({ ...task }))],
+    updatedAt: new Date().toISOString(),
+    routineSchemaVersion: ROUTINE_SCHEMA_VERSION,
+  };
 }
 
 function canUseStorage(): boolean {

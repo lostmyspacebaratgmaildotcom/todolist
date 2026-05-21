@@ -71,4 +71,6 @@ export type EditableRoutineData = {
   zones: Zone[];
   tasks: Task[];
   updatedAt: string;
+  /** Bump in storage when bundled tasks (e.g. Kitchen) change so local data can upgrade. */
+  routineSchemaVersion?: number;
 };
