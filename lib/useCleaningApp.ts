@@ -112,16 +112,24 @@ export function useCleaningApp() {
 
     setDailyLog((currentLog) => {
       const expectedDate = getCleaningDate(settings.resetTime);
+      const filteredTasks = filterTasksForToday(
+        routineData.tasks,
+        selectedZoneIds,
+        buildTodayFilterCtx(settings, currentLog),
+      );
 
       if (currentLog?.date === expectedDate) {
-        const nextLog = recalculateLogForTasks(currentLog, todayTasks);
+        const nextLog = recalculateLogForTasks(currentLog, filteredTasks);
         saveDailyLog(nextLog);
         return nextLog;
       }
 
-      return getTodayLog(todayTasks, settings);
+      return getTodayLog(
+        tasksEligibleForDailyLog(routineData.tasks, selectedZoneIds),
+        settings,
+      );
     });
-  }, [isReady, settings, todayTasks]);
+  }, [isReady, settings, routineData.tasks, selectedZoneIds]);
 
   useEffect(() => {
     if (!isReady) {
@@ -163,12 +171,15 @@ export function useCleaningApp() {
           return currentLog;
         }
 
-        return getTodayLog(todayTasks, settings);
+        return getTodayLog(
+          tasksEligibleForDailyLog(routineData.tasks, selectedZoneIds),
+          settings,
+        );
       });
     }, 30_000);
 
     return () => clearInterval(intervalId);
-  }, [isReady, settings, todayTasks, routineData.zones]);
+  }, [isReady, settings, routineData.tasks, selectedZoneIds, routineData.zones]);
 
   const updateSettings = useCallback(
     (updates: Partial<Settings>) => {
@@ -898,6 +909,16 @@ function createLocalId(prefix: string): string {
 
 function uniqueZoneIds(zoneIds: string[], validZoneIds: Set<string>): string[] {
   return Array.from(new Set(zoneIds.filter((zoneId) => validZoneIds.has(zoneId))));
+}
+
+
+/** Tasks in selected zones (any cadence) for validating stored log ids in getTodayLog. */
+function tasksEligibleForDailyLog(tasks: Task[], selectedZoneIds: string[]): Task[] {
+  const zoneSet = new Set(selectedZoneIds);
+
+  return tasks.filter(
+    (task) => task.active && task.zoneId && zoneSet.has(task.zoneId),
+  );
 }
 
 function filterTasksForToday(
