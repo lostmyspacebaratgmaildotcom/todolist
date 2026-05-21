@@ -304,19 +304,15 @@ export default function ZonesPage() {
                       <h2 className="text-xl font-black text-stone-950">
                         {zone.name}
                       </h2>
-                      <p className="mt-1 text-sm font-semibold text-stone-600">
-                        {showScheduledZoneState && zoneScheduledSummaryIso ? (
-                          <span className="font-black text-emerald-900">
-                            {scheduledOnBlurb(zoneScheduledSummaryIso)}
-                          </span>
-                        ) : (
-                          <>
-                            {dailyTasks.length} task
-                            {dailyTasks.length === 1 ? "" : "s"} today,{" "}
-                            {dailyMinutes} min
-                          </>
-                        )}
-                      </p>
+                      {!(
+                        showScheduledZoneState && zoneScheduledSummaryIso
+                      ) ? (
+                        <p className="mt-1 text-sm font-semibold text-stone-600">
+                          {dailyTasks.length} task
+                          {dailyTasks.length === 1 ? "" : "s"} today,{" "}
+                          {dailyMinutes} min
+                        </p>
+                      ) : null}
                     </div>
                     <div className="relative shrink-0">
                       <button
@@ -679,10 +675,18 @@ function CadenceRow({
           <span className="text-sm font-black text-stone-800">{label}</span>
           <span
             className={`${
-              status.startsWith("SCHEDULED ON")
+              status.startsWith("SCHEDULED ON") ||
+              status === "Active" ||
+              status === "When you notice"
                 ? "rounded-2xl px-2 py-1 text-[0.65rem] leading-snug"
                 : "rounded-full px-2 py-0.5 text-[0.6rem]"
-            } font-bold tracking-wide ${status.startsWith("SCHEDULED ON") ? "normal-case" : "uppercase"} ${cadenceStatusStyle(status)}`}
+            } font-bold tracking-wide ${
+              status.startsWith("SCHEDULED ON") ||
+              status === "Active" ||
+              status === "When you notice"
+                ? "normal-case"
+                : "uppercase"
+            } ${cadenceStatusStyle(status)}`}
           >
             {status}
           </span>
