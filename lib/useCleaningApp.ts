@@ -29,6 +29,7 @@ import type {
   Settings,
   Task,
   Zone,
+  ZoneScheduleCadenceContext,
 } from "./types";
 
 export function useCleaningApp() {
@@ -253,7 +254,7 @@ export function useCleaningApp() {
   );
 
   const scheduleZoneForDate = useCallback(
-    (zoneId: string, isoDate: string) => {
+    (zoneId: string, isoDate: string, context: ZoneScheduleCadenceContext = "zone") => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
         return;
       }
@@ -267,9 +268,9 @@ export function useCleaningApp() {
               zoneId,
               isoDate,
             ),
-            lastZoneScheduleDate: {
-              ...(currentSettings.lastZoneScheduleDate ?? {}),
-              [zoneId]: isoDate,
+            lastZoneScheduleByCadence: {
+              ...(currentSettings.lastZoneScheduleByCadence ?? {}),
+              [zoneScheduleCadenceKey(zoneId, context)]: isoDate,
             },
           },
           routineData.zones,
@@ -545,14 +546,18 @@ export function useCleaningApp() {
       const nextSettings = normalizeSettings(settings, remainingZones);
       const remainingScheduledZoneDates = { ...nextSettings.scheduledZoneDates };
       delete remainingScheduledZoneDates[zoneId];
-      const remainingLastZoneScheduleDate = {
-        ...(nextSettings.lastZoneScheduleDate ?? {}),
+      const remainingLastByCadence = {
+        ...(nextSettings.lastZoneScheduleByCadence ?? {}),
       };
-      delete remainingLastZoneScheduleDate[zoneId];
+      for (const key of Object.keys(remainingLastByCadence)) {
+        if (key.startsWith(`${zoneId}:`)) {
+          delete remainingLastByCadence[key];
+        }
+      }
       const settingsWithoutDeletedZone = {
         ...nextSettings,
         scheduledZoneDates: remainingScheduledZoneDates,
-        lastZoneScheduleDate: remainingLastZoneScheduleDate,
+        lastZoneScheduleByCadence: remainingLastByCadence,
       };
 
       saveRoutineData(nextRoutineData);
@@ -844,6 +849,13 @@ export function useCleaningApp() {
   };
 }
 
+function zoneScheduleCadenceKey(
+  zoneId: string,
+  context: ZoneScheduleCadenceContext,
+): string {
+  return `${zoneId}:${context}`;
+}
+
 function getTemplateById(templateId: string): RoutineTemplate {
   return templates.find((candidate) => candidate.id === templateId) ?? templates[0];
 }
@@ -884,24 +896,68 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
     ),
   );
 
-  const lastZoneScheduleDate = Object.fromEntries(
-    Object.entries(settings.lastZoneScheduleDate ?? {}).filter(
-      ([zoneId, date]) =>
-        validZoneIds.has(zoneId) &&
+  const mergedLastByCadence: Record<string, string> = {
+    ...(settings.lastZoneScheduleByCadence ?? {}),
+  };
+
+  const legacyLast = (
+    settings as Partial<{ lastZoneScheduleDate?: Record<string, string> }>
+  ).lastZoneScheduleDate;
+
+  if (legacyLast) {
+    for (const [legacyZoneId, date] of Object.entries(legacyLast)) {
+      if (!validZoneIds.has(legacyZoneId)) {
+        continue;
+      }
+
+      const key = zoneScheduleCadenceKey(legacyZoneId, "zone");
+      if (
+        !mergedLastByCadence[key] &&
         typeof date === "string" &&
-        /^\d{4}-\d{2}-\d{2}$/.test(date),
-    ),
+        /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ) {
+        mergedLastByCadence[key] = date;
+      }
+    }
+  }
+
+  const lastZoneScheduleByCadence = Object.fromEntries(
+    Object.entries(mergedLastByCadence).filter(([key, date]) => {
+      const match = /^([^:]+):(monthly|seasonal|zone)$/.exec(key);
+      if (!match) {
+        return false;
+      }
+
+      const zoneId = match[1];
+      const context = match[2];
+
+      if (!validZoneIds.has(zoneId)) {
+        return false;
+      }
+
+      if (context !== "monthly" && context !== "seasonal" && context !== "zone") {
+        return false;
+      }
+
+      return typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date);
+    }),
   );
+
+  const settingsWithoutLegacySchedulePick = { ...settings } as Settings & {
+    lastZoneScheduleDate?: Record<string, string>;
+  };
+  delete (settingsWithoutLegacySchedulePick as { lastZoneScheduleDate?: unknown })
+    .lastZoneScheduleDate;
 
   return {
     ...defaultSettings,
-    ...settings,
+    ...settingsWithoutLegacySchedulePick,
     selectedTemplateId,
     currentZoneIds,
     currentZoneId,
     scheduledZoneDates,
     upcomingTaskDates,
-    lastZoneScheduleDate,
+    lastZoneScheduleByCadence,
   };
 }
 

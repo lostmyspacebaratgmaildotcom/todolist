@@ -4,7 +4,13 @@ import { Fragment, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import type { Task, TaskCadence, Zone, ZoneFrequency } from "@/lib/types";
+import type {
+  Task,
+  TaskCadence,
+  Zone,
+  ZoneFrequency,
+  ZoneScheduleCadenceContext,
+} from "@/lib/types";
 import { getCleaningDate } from "@/lib/date";
 import { sortTasks } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
@@ -15,6 +21,19 @@ const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [
   { value: "monthly", label: "Monthly" },
   { value: "once", label: "Once" },
 ];
+
+function readCadenceSchedulePick(
+  map: Record<string, string> | undefined,
+  zoneId: string,
+  context: ZoneScheduleCadenceContext,
+): string | null {
+  const raw = map?.[`${zoneId}:${context}`];
+  if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  return null;
+}
 
 export default function ZonesPage() {
   const {
@@ -46,10 +65,13 @@ export default function ZonesPage() {
   const [scheduleTargetZoneId, setScheduleTargetZoneId] = useState<string | null>(
     null,
   );
+  const [scheduleTargetCadence, setScheduleTargetCadence] =
+    useState<ZoneScheduleCadenceContext | null>(null);
   const [scheduleDateValue, setScheduleDateValue] = useState("");
 
-  function openScheduleDialog(zoneId: string) {
+  function openScheduleDialog(zoneId: string, cadence: ZoneScheduleCadenceContext) {
     setScheduleTargetZoneId(zoneId);
+    setScheduleTargetCadence(cadence);
     setScheduleDateValue(getCleaningDate(settings.resetTime));
   }
 
@@ -164,15 +186,13 @@ export default function ZonesPage() {
             upcomingDates,
           );
 
-          const lastCalendarPick = settings.lastZoneScheduleDate?.[zone.id];
-          const hasValidLastCalendarPick =
-            typeof lastCalendarPick === "string" &&
-            /^\d{4}-\d{2}-\d{2}$/.test(lastCalendarPick);
+          const byCadence = settings.lastZoneScheduleByCadence;
+          const lastMonthlyPick = readCadenceSchedulePick(byCadence, zone.id, "monthly");
+          const lastSeasonalPick = readCadenceSchedulePick(byCadence, zone.id, "seasonal");
+          const lastZonePick = readCadenceSchedulePick(byCadence, zone.id, "zone");
 
           const zoneScheduledSummaryIso = showScheduledZoneState
-            ? hasValidLastCalendarPick
-              ? lastCalendarPick
-              : nextFutureSchedule ?? cleaningDate
+            ? lastZonePick ?? nextFutureSchedule ?? cleaningDate
             : null;
           const earliestMonthlyDue = getEarliestQueuedDueDate(
             monthlyTasks,
@@ -362,14 +382,10 @@ export default function ZonesPage() {
                           <CadenceRow
                             label="Monthly care"
                             status={
-                              showScheduledZoneState && zoneScheduledSummaryIso
-                                ? scheduledOnBlurb(zoneScheduledSummaryIso)
+                              lastMonthlyPick
+                                ? scheduledOnBlurb(lastMonthlyPick)
                                 : monthlyUpcomingScheduled && earliestMonthlyDue
-                                  ? scheduledOnBlurb(
-                                      hasValidLastCalendarPick
-                                        ? lastCalendarPick
-                                        : earliestMonthlyDue,
-                                    )
+                                  ? scheduledOnBlurb(earliestMonthlyDue)
                                   : "Due this month"
                             }
                             tasks={monthlyTasks}
@@ -380,7 +396,7 @@ export default function ZonesPage() {
                             showViewTasks={isSelected}
                             onToggle={() => toggleCadence(zone.id, "monthly")}
                             completedTaskIds={completedTaskIds}
-                            onSchedule={() => openScheduleDialog(zone.id)}
+                            onSchedule={() => openScheduleDialog(zone.id, "monthly")}
                             scheduleAriaLabel={`Schedule ${zone.name}`}
                           />
                         ) : null}
@@ -388,14 +404,10 @@ export default function ZonesPage() {
                           <CadenceRow
                             label="Seasonal projects"
                             status={
-                              showScheduledZoneState && zoneScheduledSummaryIso
-                                ? scheduledOnBlurb(zoneScheduledSummaryIso)
+                              lastSeasonalPick
+                                ? scheduledOnBlurb(lastSeasonalPick)
                                 : seasonalUpcomingScheduled && earliestSeasonalDue
-                                  ? scheduledOnBlurb(
-                                      hasValidLastCalendarPick
-                                        ? lastCalendarPick
-                                        : earliestSeasonalDue,
-                                    )
+                                  ? scheduledOnBlurb(earliestSeasonalDue)
                                   : "Due this quarter"
                             }
                             tasks={seasonalTasks}
@@ -406,7 +418,7 @@ export default function ZonesPage() {
                             showViewTasks={isSelected}
                             onToggle={() => toggleCadence(zone.id, "seasonal")}
                             completedTaskIds={completedTaskIds}
-                            onSchedule={() => openScheduleDialog(zone.id)}
+                            onSchedule={() => openScheduleDialog(zone.id, "seasonal")}
                             scheduleAriaLabel={`Schedule ${zone.name}`}
                           />
                         ) : null}
@@ -449,7 +461,7 @@ export default function ZonesPage() {
                       <ZoneScheduleIconButton
                         layout="full"
                         ariaLabel={`Schedule ${zone.name}`}
-                        onClick={() => openScheduleDialog(zone.id)}
+                        onClick={() => openScheduleDialog(zone.id, "zone")}
                       />
                     ) : null}
                   </div>
@@ -493,6 +505,7 @@ export default function ZonesPage() {
           onClick={(event) => {
             if (event.target === event.currentTarget) {
               setScheduleTargetZoneId(null);
+              setScheduleTargetCadence(null);
             }
           }}
         >
@@ -530,7 +543,10 @@ export default function ZonesPage() {
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setScheduleTargetZoneId(null)}
+                onClick={() => {
+                  setScheduleTargetZoneId(null);
+                  setScheduleTargetCadence(null);
+                }}
                 className="min-h-11 rounded-2xl bg-stone-100 px-3 text-sm font-black text-stone-700 transition hover:bg-stone-200"
               >
                 Cancel
@@ -538,8 +554,13 @@ export default function ZonesPage() {
               <button
                 type="button"
                 onClick={() => {
-                  scheduleZoneForDate(scheduleTargetZoneId, scheduleDateValue);
+                  scheduleZoneForDate(
+                    scheduleTargetZoneId,
+                    scheduleDateValue,
+                    scheduleTargetCadence ?? "zone",
+                  );
                   setScheduleTargetZoneId(null);
+                  setScheduleTargetCadence(null);
                 }}
                 disabled={!/^\d{4}-\d{2}-\d{2}$/.test(scheduleDateValue)}
                 className="min-h-11 rounded-2xl bg-emerald-950 px-3 text-sm font-black text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500"

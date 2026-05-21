@@ -65,13 +65,18 @@ export type Settings = {
   currentZoneIds: string[];
   currentZoneId: string;
   scheduledZoneDates: Record<string, string[]>;
-  /** zoneId -> last YYYY-MM-DD chosen in the zone schedule (calendar) dialog — used for UI blurbs */
-  lastZoneScheduleDate?: Record<string, string>;
+  /**
+   * Keys `${zoneId}:monthly`, `${zoneId}:seasonal`, or `${zoneId}:zone` (bottom bar)
+   * -> last YYYY-MM-DD chosen in that schedule dialog for UI blurbs.
+   */
+  lastZoneScheduleByCadence?: Record<string, string>;
   /** taskId -> next YYYY-MM-DD when monthly/seasonal work surfaces on Today */
   upcomingTaskDates: Record<string, string>;
   firstRunComplete: boolean;
   lastAutoZoneDate?: string;
 };
+
+export type ZoneScheduleCadenceContext = "monthly" | "seasonal" | "zone";
 
 export type EditableRoutineData = {
   zones: Zone[];
