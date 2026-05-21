@@ -39,6 +39,20 @@ export function sortTasks(taskList: Task[]): Task[] {
     });
 }
 
+export function getZoneDailyResetTasks(
+  taskList: Task[],
+  zoneId: string,
+): Task[] {
+  const dailyForZone = taskList.filter(
+    (task) =>
+      task.zoneId === zoneId &&
+      (!task.cadence || task.cadence === "daily") &&
+      !task.dailyPreviewOnly,
+  );
+
+  return sortTasks(dailyForZone);
+}
+
 export function calculateBlockCompletion(
   blockTasks: Task[],
   completedTaskIds: string[],
