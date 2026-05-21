@@ -40,8 +40,8 @@ import type {
   ZoneScheduleCadenceContext,
 } from "./types";
 
-/** Weekly schedule UI is anchored on the Kitchen zone card (see Zones page). */
-const WEEKLY_SCHEDULE_ANCHOR_ZONE_ID = "kitchen";
+/** Legacy weekly pick key before per-zone weekly schedules (`{zoneId}:weekly`). Used as read fallback and migration source. */
+const LEGACY_WEEKLY_SCHEDULE_ZONE_ID = "kitchen";
 
 function useCleaningAppState() {
   const [isReady, setIsReady] = useState(false);
@@ -319,14 +319,9 @@ function useCleaningAppState() {
         let nextZoneIds = currentSettings.currentZoneIds;
         if (reflectsOnTodayTab) {
           if (context === "weekly") {
-            const merged = new Set(currentSettings.currentZoneIds);
-            merged.add(zoneId);
-            for (const task of routineData.tasks) {
-              if (task.active && task.cadence === "weekly" && task.zoneId) {
-                merged.add(task.zoneId);
-              }
-            }
-            nextZoneIds = Array.from(merged);
+            nextZoneIds = Array.from(
+              new Set([...currentSettings.currentZoneIds, zoneId]),
+            );
           } else {
             nextZoneIds = Array.from(
               new Set([...currentSettings.currentZoneIds, zoneId]),
@@ -340,7 +335,7 @@ function useCleaningAppState() {
         let changedUpcoming = false;
         if (context === "weekly") {
           for (const task of routineData.tasks) {
-            if (!task.active || task.cadence !== "weekly") {
+            if (!task.active || task.cadence !== "weekly" || task.zoneId !== zoneId) {
               continue;
             }
             mergedUpcoming[task.id] = isoDate;
@@ -1095,6 +1090,75 @@ function useCleaningAppState() {
     dailyLog?.asNeededOnTodayTaskIds?.join(","),
   ]);
 
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    const legacyKey = `${LEGACY_WEEKLY_SCHEDULE_ZONE_ID}:weekly`;
+    const legacyPick = settings.lastZoneScheduleByCadence?.[legacyKey];
+    if (typeof legacyPick !== "string") {
+      return;
+    }
+
+    const zoneIds = new Set(
+      routineData.tasks
+        .filter(
+          (task) => task.active && task.cadence === "weekly" && task.zoneId,
+        )
+        .map((task) => task.zoneId as string),
+    );
+
+    const needsBackfill = [...zoneIds].some((zoneId) => {
+      const key = `${zoneId}:weekly`;
+      const value = settings.lastZoneScheduleByCadence?.[key];
+
+      return typeof value !== "string";
+    });
+
+    if (!needsBackfill) {
+      return;
+    }
+
+    setSettings((currentSettings) => {
+      const map = { ...(currentSettings.lastZoneScheduleByCadence ?? {}) };
+      const legacy = map[legacyKey];
+
+      if (typeof legacy !== "string") {
+        return currentSettings;
+      }
+
+      let changed = false;
+
+      for (const zoneId of zoneIds) {
+        const key = `${zoneId}:weekly`;
+
+        if (typeof map[key] !== "string") {
+          map[key] = legacy;
+          changed = true;
+        }
+      }
+
+      if (!changed) {
+        return currentSettings;
+      }
+
+      const nextSettings = normalizeSettings(
+        { ...currentSettings, lastZoneScheduleByCadence: map },
+        routineData.zones,
+      );
+
+      saveSettings(nextSettings);
+
+      return nextSettings;
+    });
+  }, [
+    isReady,
+    routineData.tasks,
+    routineData.zones,
+    settings.lastZoneScheduleByCadence,
+  ]);
+
   const asNeededForCalendarTodayIds = useMemo(() => {
     const cal = getLocalCalendarDate();
     const ids = new Set<string>();
@@ -1388,8 +1452,18 @@ function filterTasksForToday(
     }
 
     if (cadence === "weekly") {
-      const pickKey = `${WEEKLY_SCHEDULE_ANCHOR_ZONE_ID}:weekly`;
-      const scheduledPick = ctx.lastZoneScheduleByCadence[pickKey];
+      const zoneId = task.zoneId;
+      const pickKey =
+        typeof zoneId === "string" && zoneId.length > 0
+          ? `${zoneId}:weekly`
+          : `${LEGACY_WEEKLY_SCHEDULE_ZONE_ID}:weekly`;
+      let scheduledPick = ctx.lastZoneScheduleByCadence[pickKey];
+      if (typeof scheduledPick !== "string") {
+        scheduledPick =
+          ctx.lastZoneScheduleByCadence[
+            `${LEGACY_WEEKLY_SCHEDULE_ZONE_ID}:weekly`
+          ];
+      }
       if (
         typeof scheduledPick === "string" &&
         scheduledPick === ctx.calendarToday

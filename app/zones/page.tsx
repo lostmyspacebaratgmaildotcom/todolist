@@ -26,6 +26,18 @@ function readCadenceSchedulePick(
   return null;
 }
 
+function readWeeklySchedulePick(
+  map: Record<string, string> | undefined,
+  zoneId: string,
+): string | null {
+  const direct = readCadenceSchedulePick(map, zoneId, "weekly");
+  if (direct) {
+    return direct;
+  }
+
+  return readCadenceSchedulePick(map, "kitchen", "weekly");
+}
+
 export default function ZonesPage() {
   const {
     zones,
@@ -42,13 +54,6 @@ export default function ZonesPage() {
   const completedTaskIds = new Set(dailyLog?.completedTaskIds ?? []);
   const asNeededOnTodayIds = asNeededForCalendarTodayIds;
 
-  const weeklyAnchorZoneId = "kitchen";
-  const lastWeeklyPick = readCadenceSchedulePick(
-    settings.lastZoneScheduleByCadence,
-    weeklyAnchorZoneId,
-    "weekly",
-  );
-
   const [expandedCadence, setExpandedCadence] = useState<{
     zoneId: string;
     cadence: TaskCadence;
@@ -63,11 +68,14 @@ export default function ZonesPage() {
   function openScheduleDialog(zoneId: string, cadence: ZoneScheduleCadenceContext) {
     setScheduleTargetZoneId(zoneId);
     setScheduleTargetCadence(cadence);
-    const savedPick = readCadenceSchedulePick(
-      settings.lastZoneScheduleByCadence,
-      zoneId,
-      cadence,
-    );
+    const savedPick =
+      cadence === "weekly"
+        ? readWeeklySchedulePick(settings.lastZoneScheduleByCadence, zoneId)
+        : readCadenceSchedulePick(
+            settings.lastZoneScheduleByCadence,
+            zoneId,
+            cadence,
+          );
     setScheduleDateValue(savedPick ?? getLocalCalendarDate());
   }
 
@@ -149,6 +157,7 @@ export default function ZonesPage() {
           const lastMonthlyPick = readCadenceSchedulePick(byCadence, zone.id, "monthly");
           const lastSeasonalPick = readCadenceSchedulePick(byCadence, zone.id, "seasonal");
           const lastZonePick = readCadenceSchedulePick(byCadence, zone.id, "zone");
+          const lastWeeklyPick = readWeeklySchedulePick(byCadence, zone.id);
 
           const zoneScheduledSummaryIso = showScheduledZoneState
             ? lastZonePick ?? nextFutureSchedule ?? cleaningDate
@@ -215,9 +224,7 @@ export default function ZonesPage() {
                         showViewTasks={isSelected}
                         onToggle={() => toggleCadence(zone.id, "weekly")}
                         completedTaskIds={completedTaskIds}
-                        onSchedule={() =>
-                          openScheduleDialog(weeklyAnchorZoneId, "weekly")
-                        }
+                        onSchedule={() => openScheduleDialog(zone.id, "weekly")}
                         scheduleAriaLabel="Schedule weekly care"
                       />
                     ) : null}

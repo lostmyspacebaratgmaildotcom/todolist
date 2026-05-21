@@ -66,7 +66,7 @@ export type Settings = {
   currentZoneId: string;
   scheduledZoneDates: Record<string, string[]>;
   /**
-   * Keys `${zoneId}:monthly`, `${zoneId}:seasonal`, or `${zoneId}:zone` (bottom bar)
+   * Keys `${zoneId}:monthly`, `${zoneId}:seasonal`, `${zoneId}:weekly`, or `${zoneId}:zone` (bottom bar)
    * -> last YYYY-MM-DD chosen in that schedule dialog for UI blurbs.
    */
   lastZoneScheduleByCadence?: Record<string, string>;
