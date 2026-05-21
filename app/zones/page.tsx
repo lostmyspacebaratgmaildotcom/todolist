@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import type { Task, TaskCadence, Zone, ZoneFrequency } from "@/lib/types";
-import { formatDisplayDate, getCleaningDate } from "@/lib/date";
+import { getCleaningDate } from "@/lib/date";
 import { sortTasks } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
@@ -164,6 +164,20 @@ export default function ZonesPage() {
             upcomingDates,
           );
 
+          const zoneScheduleBlurbIso = showScheduledZoneState
+            ? nextFutureSchedule ?? cleaningDate
+            : null;
+          const earliestMonthlyDue = getEarliestQueuedDueDate(
+            monthlyTasks,
+            upcomingDates,
+            cleaningDate,
+          );
+          const earliestSeasonalDue = getEarliestQueuedDueDate(
+            seasonalTasks,
+            upcomingDates,
+            cleaningDate,
+          );
+
           return (
             <Fragment key={zone.id}>
             <article
@@ -247,22 +261,10 @@ export default function ZonesPage() {
                         {zone.name}
                       </h2>
                       <p className="mt-1 text-sm font-semibold text-stone-600">
-                        {showScheduledZoneState ? (
-                          nextFutureSchedule ? (
-                            <>
-                              <span className="font-black text-emerald-900">
-                                Scheduled
-                              </span>
-                              <span className="text-stone-600">
-                                {" "}
-                                · {formatDisplayDate(nextFutureSchedule)}
-                              </span>
-                            </>
-                          ) : (
-                            <span className="font-black text-emerald-900">
-                              Scheduled
-                            </span>
-                          )
+                        {showScheduledZoneState && zoneScheduleBlurbIso ? (
+                          <span className="font-black text-emerald-900">
+                            {scheduledOnBlurb(zoneScheduleBlurbIso)}
+                          </span>
                         ) : (
                           <>
                             {dailyTasks.length} task
@@ -334,8 +336,8 @@ export default function ZonesPage() {
                           ? "Done today"
                           : isSelected
                             ? "Active"
-                            : showScheduledZoneState
-                              ? "Scheduled"
+                            : showScheduledZoneState && zoneScheduleBlurbIso
+                              ? scheduledOnBlurb(zoneScheduleBlurbIso)
                               : "Due today"
                       }
                       tasks={dailyResetTasks}
@@ -353,9 +355,11 @@ export default function ZonesPage() {
                           <CadenceRow
                             label="Monthly care"
                             status={
-                              showScheduledZoneState || monthlyUpcomingScheduled
-                                ? "Scheduled"
-                                : "Due this month"
+                              showScheduledZoneState && zoneScheduleBlurbIso
+                                ? scheduledOnBlurb(zoneScheduleBlurbIso)
+                                : monthlyUpcomingScheduled && earliestMonthlyDue
+                                  ? scheduledOnBlurb(earliestMonthlyDue)
+                                  : "Due this month"
                             }
                             tasks={monthlyTasks}
                             isExpanded={
@@ -373,9 +377,11 @@ export default function ZonesPage() {
                           <CadenceRow
                             label="Seasonal projects"
                             status={
-                              showScheduledZoneState || seasonalUpcomingScheduled
-                                ? "Scheduled"
-                                : "Due this quarter"
+                              showScheduledZoneState && zoneScheduleBlurbIso
+                                ? scheduledOnBlurb(zoneScheduleBlurbIso)
+                                : seasonalUpcomingScheduled && earliestSeasonalDue
+                                  ? scheduledOnBlurb(earliestSeasonalDue)
+                                  : "Due this quarter"
                             }
                             tasks={seasonalTasks}
                             isExpanded={
@@ -534,6 +540,40 @@ export default function ZonesPage() {
 }
 
 
+function formatDdMmYy(isoDate: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    return "";
+  }
+
+  const [yearStr, monthStr, dayStr] = isoDate.split("-");
+
+  return `${dayStr}.${monthStr}.${yearStr.slice(-2)}`;
+}
+
+function scheduledOnBlurb(isoDate: string): string {
+  const formatted = formatDdMmYy(isoDate);
+
+  if (!formatted) {
+    return "Scheduled";
+  }
+
+  return `Scheduled on ${formatted}`;
+}
+
+function getEarliestQueuedDueDate(
+  tasks: Task[],
+  upcomingDates: Record<string, string>,
+  cleaningDate: string,
+): string | null {
+  const dates = tasks
+    .map((task) => upcomingDates[task.id])
+    .filter((d): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .filter((d) => d > cleaningDate)
+    .sort();
+
+  return dates[0] ?? null;
+}
+
 function cadenceTasksQueuedForLater(
   tasks: Task[],
   cleaningDate: string,
@@ -618,7 +658,13 @@ function CadenceRow({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="text-sm font-black text-stone-800">{label}</span>
-          <span className={`rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide ${cadenceStatusStyle(status)}`}>
+          <span
+            className={`${
+              status.startsWith("Scheduled on")
+                ? "rounded-2xl px-2 py-1 text-[0.65rem] leading-snug"
+                : "rounded-full px-2 py-0.5 text-[0.6rem]"
+            } font-bold tracking-wide ${status.startsWith("Scheduled on") ? "normal-case" : "uppercase"} ${cadenceStatusStyle(status)}`}
+          >
             {status}
           </span>
         </div>
@@ -726,6 +772,10 @@ function CadenceRow({
 }
 
 function cadenceStatusStyle(status: string): string {
+  if (status.startsWith("Scheduled on")) {
+    return "bg-violet-100 text-violet-900";
+  }
+
   switch (status) {
     case "Active":
       return "bg-emerald-100 text-emerald-800";
@@ -733,8 +783,6 @@ function cadenceStatusStyle(status: string): string {
       return "bg-emerald-100 text-emerald-800";
     case "Due today":
       return "bg-amber-100 text-amber-800";
-    case "Scheduled":
-      return "bg-violet-100 text-violet-900";
     case "Due this week":
       return "bg-sky-100 text-sky-800";
     case "Due this month":
