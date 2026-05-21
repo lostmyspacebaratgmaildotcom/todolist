@@ -169,7 +169,7 @@ export default function ZonesPage() {
             typeof lastCalendarPick === "string" &&
             /^\d{4}-\d{2}-\d{2}$/.test(lastCalendarPick);
 
-          const zoneScheduleBlurbIso = showScheduledZoneState
+          const zoneScheduledSummaryIso = showScheduledZoneState
             ? hasValidLastCalendarPick
               ? lastCalendarPick
               : nextFutureSchedule ?? cleaningDate
@@ -268,9 +268,9 @@ export default function ZonesPage() {
                         {zone.name}
                       </h2>
                       <p className="mt-1 text-sm font-semibold text-stone-600">
-                        {showScheduledZoneState && zoneScheduleBlurbIso ? (
+                        {showScheduledZoneState && zoneScheduledSummaryIso ? (
                           <span className="font-black text-emerald-900">
-                            {scheduledOnBlurb(zoneScheduleBlurbIso)}
+                            {scheduledOnBlurb(zoneScheduledSummaryIso)}
                           </span>
                         ) : (
                           <>
@@ -343,8 +343,8 @@ export default function ZonesPage() {
                           ? "Done today"
                           : isSelected
                             ? "Active"
-                            : showScheduledZoneState && zoneScheduleBlurbIso
-                              ? scheduledOnBlurb(zoneScheduleBlurbIso)
+                            : showScheduledZoneState && zoneScheduledSummaryIso
+                              ? scheduledOnBlurb(zoneScheduledSummaryIso)
                               : "Due today"
                       }
                       tasks={dailyResetTasks}
@@ -362,10 +362,14 @@ export default function ZonesPage() {
                           <CadenceRow
                             label="Monthly care"
                             status={
-                              showScheduledZoneState && zoneScheduleBlurbIso
-                                ? scheduledOnBlurb(zoneScheduleBlurbIso)
+                              showScheduledZoneState && zoneScheduledSummaryIso
+                                ? scheduledOnBlurb(zoneScheduledSummaryIso)
                                 : monthlyUpcomingScheduled && earliestMonthlyDue
-                                  ? scheduledOnBlurb(earliestMonthlyDue)
+                                  ? scheduledOnBlurb(
+                                      hasValidLastCalendarPick
+                                        ? lastCalendarPick
+                                        : earliestMonthlyDue,
+                                    )
                                   : "Due this month"
                             }
                             tasks={monthlyTasks}
@@ -384,10 +388,14 @@ export default function ZonesPage() {
                           <CadenceRow
                             label="Seasonal projects"
                             status={
-                              showScheduledZoneState && zoneScheduleBlurbIso
-                                ? scheduledOnBlurb(zoneScheduleBlurbIso)
+                              showScheduledZoneState && zoneScheduledSummaryIso
+                                ? scheduledOnBlurb(zoneScheduledSummaryIso)
                                 : seasonalUpcomingScheduled && earliestSeasonalDue
-                                  ? scheduledOnBlurb(earliestSeasonalDue)
+                                  ? scheduledOnBlurb(
+                                      hasValidLastCalendarPick
+                                        ? lastCalendarPick
+                                        : earliestSeasonalDue,
+                                    )
                                   : "Due this quarter"
                             }
                             tasks={seasonalTasks}
