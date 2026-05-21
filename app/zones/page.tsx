@@ -164,8 +164,15 @@ export default function ZonesPage() {
             upcomingDates,
           );
 
+          const lastCalendarPick = settings.lastZoneScheduleDate?.[zone.id];
+          const hasValidLastCalendarPick =
+            typeof lastCalendarPick === "string" &&
+            /^\d{4}-\d{2}-\d{2}$/.test(lastCalendarPick);
+
           const zoneScheduleBlurbIso = showScheduledZoneState
-            ? nextFutureSchedule ?? cleaningDate
+            ? hasValidLastCalendarPick
+              ? lastCalendarPick
+              : nextFutureSchedule ?? cleaningDate
             : null;
           const earliestMonthlyDue = getEarliestQueuedDueDate(
             monthlyTasks,
@@ -554,10 +561,10 @@ function scheduledOnBlurb(isoDate: string): string {
   const formatted = formatDdMmYy(isoDate);
 
   if (!formatted) {
-    return "Scheduled";
+    return "SCHEDULED ON";
   }
 
-  return `Scheduled on ${formatted}`;
+  return `SCHEDULED ON ${formatted}`;
 }
 
 function getEarliestQueuedDueDate(
@@ -660,10 +667,10 @@ function CadenceRow({
           <span className="text-sm font-black text-stone-800">{label}</span>
           <span
             className={`${
-              status.startsWith("Scheduled on")
+              status.startsWith("SCHEDULED ON")
                 ? "rounded-2xl px-2 py-1 text-[0.65rem] leading-snug"
                 : "rounded-full px-2 py-0.5 text-[0.6rem]"
-            } font-bold tracking-wide ${status.startsWith("Scheduled on") ? "normal-case" : "uppercase"} ${cadenceStatusStyle(status)}`}
+            } font-bold tracking-wide ${status.startsWith("SCHEDULED ON") ? "normal-case" : "uppercase"} ${cadenceStatusStyle(status)}`}
           >
             {status}
           </span>
@@ -772,7 +779,7 @@ function CadenceRow({
 }
 
 function cadenceStatusStyle(status: string): string {
-  if (status.startsWith("Scheduled on")) {
+  if (status.startsWith("SCHEDULED ON")) {
     return "bg-violet-100 text-violet-900";
   }
 

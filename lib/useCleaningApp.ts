@@ -267,6 +267,10 @@ export function useCleaningApp() {
               zoneId,
               isoDate,
             ),
+            lastZoneScheduleDate: {
+              ...(currentSettings.lastZoneScheduleDate ?? {}),
+              [zoneId]: isoDate,
+            },
           },
           routineData.zones,
         );
@@ -541,9 +545,14 @@ export function useCleaningApp() {
       const nextSettings = normalizeSettings(settings, remainingZones);
       const remainingScheduledZoneDates = { ...nextSettings.scheduledZoneDates };
       delete remainingScheduledZoneDates[zoneId];
+      const remainingLastZoneScheduleDate = {
+        ...(nextSettings.lastZoneScheduleDate ?? {}),
+      };
+      delete remainingLastZoneScheduleDate[zoneId];
       const settingsWithoutDeletedZone = {
         ...nextSettings,
         scheduledZoneDates: remainingScheduledZoneDates,
+        lastZoneScheduleDate: remainingLastZoneScheduleDate,
       };
 
       saveRoutineData(nextRoutineData);
@@ -875,6 +884,15 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
     ),
   );
 
+  const lastZoneScheduleDate = Object.fromEntries(
+    Object.entries(settings.lastZoneScheduleDate ?? {}).filter(
+      ([zoneId, date]) =>
+        validZoneIds.has(zoneId) &&
+        typeof date === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(date),
+    ),
+  );
+
   return {
     ...defaultSettings,
     ...settings,
@@ -883,6 +901,7 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
     currentZoneId,
     scheduledZoneDates,
     upcomingTaskDates,
+    lastZoneScheduleDate,
   };
 }
 

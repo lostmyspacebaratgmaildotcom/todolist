@@ -34,6 +34,7 @@ export const defaultSettings: Settings = {
   currentZoneIds: [defaultZoneId],
   currentZoneId: defaultZoneId,
   scheduledZoneDates: {},
+  lastZoneScheduleDate: {},
   upcomingTaskDates: {},
   firstRunComplete: false,
 };
