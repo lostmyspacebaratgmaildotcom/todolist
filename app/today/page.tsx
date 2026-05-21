@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { ProgressPill } from "@/components/ProgressPill";
@@ -7,6 +8,7 @@ import { RoutineBlockCard } from "@/components/RoutineBlockCard";
 import { ZoneTimer } from "@/components/ZoneTimer";
 import { formatDisplayDate } from "@/lib/date";
 import { getCurrentBlockId, getTasksForBlock } from "@/lib/progress";
+import type { RoutineBlockId } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 export default function TodayPage() {
@@ -23,7 +25,12 @@ export default function TodayPage() {
     startTemplate,
   } = useCleaningApp();
 
-  const currentBlockId = getCurrentBlockId();
+  const [currentBlockId, setCurrentBlockId] = useState<RoutineBlockId>("morning");
+
+  useEffect(() => {
+    setCurrentBlockId(getCurrentBlockId());
+  }, []);
+
   const orderedBlocks = [
     ...routineBlocks.filter((block) => block.id === currentBlockId),
     ...routineBlocks.filter((block) => block.id !== currentBlockId),

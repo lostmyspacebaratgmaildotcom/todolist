@@ -15,7 +15,8 @@ export function formatDisplayDate(dateString: string): string {
   const [year, month, day] = dateString.split("-").map(Number);
   const date = new Date(year, month - 1, day);
 
-  return new Intl.DateTimeFormat(undefined, {
+  // Fixed locale keeps SSR and the browser from disagreeing (hydration mismatch).
+  return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",

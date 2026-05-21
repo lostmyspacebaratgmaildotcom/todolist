@@ -3,7 +3,12 @@
 import { useMemo } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import { formatDisplayDate, getCleaningDate } from "@/lib/date";
+import {
+  firstDayOfNextCalendarMonthFrom,
+  firstDayOfNextQuarterFrom,
+  formatDisplayDate,
+  getCleaningDate,
+} from "@/lib/date";
 import { sortTasks } from "@/lib/progress";
 import type { Task } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
@@ -101,8 +106,15 @@ function CadenceQueue({
       <h2 className="text-lg font-black text-stone-950">{title}</h2>
       <ul className="mt-3 space-y-3">
         {tasks.map((task) => {
-          const due = upcomingTaskDates[task.id] ?? "";
-          const onToday = due && cleaningDate >= due;
+          const storedDue = upcomingTaskDates[task.id];
+          const hasValidStored =
+            typeof storedDue === "string" && /^\d{4}-\d{2}-\d{2}$/.test(storedDue);
+          const due = hasValidStored
+            ? storedDue
+            : task.cadence === "monthly"
+              ? firstDayOfNextCalendarMonthFrom(cleaningDate)
+              : firstDayOfNextQuarterFrom(cleaningDate);
+          const onToday = Boolean(due && cleaningDate >= due);
 
           return (
             <li
