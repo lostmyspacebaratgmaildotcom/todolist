@@ -71,9 +71,9 @@ export function useCleaningApp() {
       filterTasksForToday(
         routineData.tasks,
         selectedZoneIds,
-        buildTodayFilterCtx(settings, dailyLog),
+        buildTodayFilterCtx(settings, dailyLog, routineData.zones),
       ),
-    [routineData.tasks, selectedZoneIds, settings, dailyLog],
+    [routineData.tasks, routineData.zones, selectedZoneIds, settings, dailyLog],
   );
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export function useCleaningApp() {
         filterTasksForToday(
           storedRoutineData.tasks,
           normalizedSettings.currentZoneIds,
-          buildTodayFilterCtx(normalizedSettings, null),
+          buildTodayFilterCtx(normalizedSettings, null, storedRoutineData.zones),
         ),
         normalizedSettings,
       ),
@@ -119,7 +119,7 @@ export function useCleaningApp() {
       const filteredTasks = filterTasksForToday(
         routineData.tasks,
         selectedZoneIds,
-        buildTodayFilterCtx(settings, currentLog),
+        buildTodayFilterCtx(settings, currentLog, routineData.zones),
       );
 
       if (currentLog?.date === expectedDate) {
@@ -129,11 +129,14 @@ export function useCleaningApp() {
       }
 
       return getTodayLog(
-        tasksEligibleForDailyLog(routineData.tasks, selectedZoneIds),
+        tasksEligibleForDailyLog(
+          routineData.tasks,
+          routineData.zones.map((zone) => zone.id),
+        ),
         settings,
       );
     });
-  }, [isReady, settings, routineData.tasks, selectedZoneIds]);
+  }, [isReady, settings, routineData.tasks, routineData.zones, selectedZoneIds]);
 
   useEffect(() => {
     if (!isReady) {
@@ -176,7 +179,10 @@ export function useCleaningApp() {
         }
 
         return getTodayLog(
-          tasksEligibleForDailyLog(routineData.tasks, selectedZoneIds),
+          tasksEligibleForDailyLog(
+            routineData.tasks,
+            routineData.zones.map((zone) => zone.id),
+          ),
           settings,
         );
       });
@@ -432,7 +438,7 @@ export function useCleaningApp() {
         const nextTodayTasks = filterTasksForToday(
           nextRoutineData.tasks,
           nextSettings.currentZoneIds,
-          buildTodayFilterCtx(nextSettings, null),
+          buildTodayFilterCtx(nextSettings, null, nextRoutineData.zones),
         );
         const date = getCleaningDate(nextSettings.resetTime);
         const blockCompletion = calculateCompletions(nextTodayTasks, []);
@@ -460,10 +466,10 @@ export function useCleaningApp() {
   const reconcileDailyLogForTasks = useCallback(
     (nextTasks: Task[]) => {
       setDailyLog((currentLog) => {
-        const ctx = buildTodayFilterCtx(settings, currentLog);
+        const ctx = buildTodayFilterCtx(settings, currentLog, routineData.zones);
         const filtered = filterTasksForToday(
           nextTasks,
-          settings.currentZoneIds,
+          selectedZoneIds,
           ctx,
         );
         const baseLog = currentLog ?? getTodayLog(filtered, settings);
@@ -474,7 +480,7 @@ export function useCleaningApp() {
         return nextLog;
       });
     },
-    [settings],
+    [routineData.tasks, routineData.zones, selectedZoneIds, settings],
   );
 
   const setTaskCompleted = useCallback(
@@ -821,8 +827,8 @@ export function useCleaningApp() {
         };
         const filtered = filterTasksForToday(
           routineData.tasks,
-          settings.currentZoneIds,
-          buildTodayFilterCtx(settings, nextLog),
+          selectedZoneIds,
+          buildTodayFilterCtx(settings, nextLog, routineData.zones),
         );
         const withBlocks = recalculateLogForTasks(nextLog, filtered);
 
@@ -831,7 +837,7 @@ export function useCleaningApp() {
         return withBlocks;
       });
     },
-    [routineData.tasks, settings],
+    [routineData.tasks, routineData.zones, selectedZoneIds, settings],
   );
 
   const updateUpcomingTaskDate = useCallback(
@@ -866,7 +872,7 @@ export function useCleaningApp() {
       filterTasksForToday(
         nextRoutineData.tasks,
         nextSettings.currentZoneIds,
-        buildTodayFilterCtx(nextSettings, null),
+        buildTodayFilterCtx(nextSettings, null, nextRoutineData.zones),
       ),
       nextSettings,
     );
@@ -1038,11 +1044,14 @@ type TodayFilterContext = {
   upcomingTaskDates: Record<string, string>;
   asNeededOnTodayTaskIds: string[];
   lastZoneScheduleByCadence: Record<string, string>;
+  /** Zone ids in the current routine; dailies are always eligible from these zones. */
+  routineZoneIds: string[];
 };
 
 function buildTodayFilterCtx(
   settings: Settings,
   dailyLog: DailyLog | null,
+  zones: Zone[],
 ): TodayFilterContext {
   return {
     cleaningDate: getCleaningDate(settings.resetTime),
@@ -1050,6 +1059,7 @@ function buildTodayFilterCtx(
     upcomingTaskDates: settings.upcomingTaskDates ?? {},
     asNeededOnTodayTaskIds: dailyLog?.asNeededOnTodayTaskIds ?? [],
     lastZoneScheduleByCadence: settings.lastZoneScheduleByCadence ?? {},
+    routineZoneIds: zones.map((zone) => zone.id),
   };
 }
 
@@ -1077,10 +1087,11 @@ function filterTasksForToday(
   ctx: TodayFilterContext,
 ): Task[] {
   const selectedZones = new Set(selectedZoneIds);
+  const routineZones = new Set(ctx.routineZoneIds);
   const asNeededToday = new Set(ctx.asNeededOnTodayTaskIds);
 
   return tasks.filter((task) => {
-    if (!task.active || !task.zoneId || !selectedZones.has(task.zoneId)) {
+    if (!task.active || !task.zoneId || !routineZones.has(task.zoneId)) {
       return false;
     }
 
@@ -1088,6 +1099,10 @@ function filterTasksForToday(
 
     if (cadence === "daily") {
       return true;
+    }
+
+    if (!selectedZones.has(task.zoneId)) {
+      return false;
     }
 
     if (cadence === "weekly") {

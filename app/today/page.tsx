@@ -18,7 +18,6 @@ export default function TodayPage() {
     todayTabCalendarDate,
     template,
     zones,
-    selectedZones,
     routineBlocks,
     todayTasks,
     setTaskCompleted,
@@ -76,9 +75,9 @@ export default function TodayPage() {
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
               Zones for today
             </p>
-            {selectedZones.length > 0 ? (
+            {zones.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-2">
-                {selectedZones.map((zone) => (
+                {zones.map((zone) => (
                   <span
                     key={zone.id}
                     className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-900"
@@ -89,16 +88,16 @@ export default function TodayPage() {
               </div>
             ) : (
               <h2 className="mt-1 text-2xl font-black text-stone-950">
-                No zones selected
+                No zones in this routine
               </h2>
             )}
             <p className="mt-2 text-sm leading-6 text-stone-600">
-              Today only shows tasks assigned to zones you selected on the Zones
-              page. Tasks without a zone stay out of Today.
+              Daily resets include every zone. Weekly, monthly, and seasonal items
+              still follow the schedule and “on today” rules from the Zones page.
             </p>
           </div>
           <div className="rounded-2xl bg-stone-100 px-3 py-2 text-center text-xs font-black text-stone-700">
-            {selectedZones.length} selected
+            {zones.length} zones
           </div>
         </div>
       </section>
@@ -116,7 +115,7 @@ export default function TodayPage() {
           </p>
         ) : (
           <p className="mt-1 text-sm font-semibold text-stone-600">
-            Select zones with assigned tasks, or complete the visible zone tasks.
+            Complete the next visible task, or adjust cadence schedules on Zones.
           </p>
         )}
       </section>

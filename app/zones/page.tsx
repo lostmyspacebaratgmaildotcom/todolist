@@ -42,7 +42,6 @@ export default function ZonesPage() {
     routineTasks,
     dailyLog,
     settings,
-    addZoneToday,
     removeZoneToday,
     scheduleZoneForDate,
     deleteZone,
@@ -192,10 +191,9 @@ export default function ZonesPage() {
           const nextFutureSchedule =
             [...futureScheduledDates].sort()[0] ?? null;
           const scheduledForTodayNotStarted =
-            !isSelected && zoneScheduledDates.includes(cleaningDate);
+            zoneScheduledDates.includes(cleaningDate);
           const showScheduledZoneState =
-            !isSelected &&
-            (Boolean(nextFutureSchedule) || scheduledForTodayNotStarted);
+            Boolean(nextFutureSchedule) || scheduledForTodayNotStarted;
 
           const upcomingDates = settings.upcomingTaskDates ?? {};
           const monthlyUpcomingScheduled = cadenceTasksQueuedForLater(
@@ -384,18 +382,16 @@ export default function ZonesPage() {
                       status={
                         allDailyDone
                           ? "Done today"
-                          : isSelected
-                            ? "Active"
-                            : showScheduledZoneState && zoneScheduledSummaryIso
-                              ? scheduledOnBlurb(zoneScheduledSummaryIso)
-                              : "Due today"
+                          : showScheduledZoneState && zoneScheduledSummaryIso
+                            ? scheduledOnBlurb(zoneScheduledSummaryIso)
+                            : "Active"
                       }
                       tasks={dailyResetTasks}
                       isExpanded={
                         expandedCadence?.zoneId === zone.id &&
                         expandedCadence?.cadence === "daily"
                       }
-                      showViewTasks={isSelected}
+                      showViewTasks={true}
                       onToggle={() => toggleCadence(zone.id, "daily")}
                       completedTaskIds={completedTaskIds}
                     />
@@ -487,31 +483,15 @@ export default function ZonesPage() {
                     ) : null}
                   </div>
 
-                  <div
-                    className={`mt-4 grid gap-2 ${
-                      monthlyTasks.length > 0 ||
-                      seasonalTasks.length > 0 ||
-                      (zone.id === weeklyAnchorZoneId && showKitchenWeeklyBlock)
-                        ? "grid-cols-1"
-                        : "grid-cols-2"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      disabled={isSelected}
-                      onClick={() => addZoneToday(zone.id)}
-                      className="min-h-11 rounded-2xl bg-emerald-950 px-2 text-xs font-black text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500"
-                    >
-                      {isSelected ? "Started" : "Start"}
-                    </button>
-                    {monthlyTasks.length === 0 && seasonalTasks.length === 0 ? (
+                  {monthlyTasks.length === 0 && seasonalTasks.length === 0 ? (
+                    <div className="mt-4">
                       <ZoneScheduleIconButton
                         layout="full"
                         ariaLabel={`Schedule ${zone.name}`}
                         onClick={() => openScheduleDialog(zone.id, "zone")}
                       />
-                    ) : null}
-                  </div>
+                    </div>
+                  ) : null}
                 </>
               )}
             </article>
