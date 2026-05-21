@@ -4,7 +4,7 @@ export type ApartmentType = "studio" | "one-bedroom" | "shared";
 
 export type ZoneFrequency = "daily" | "weekly" | "monthly" | "once";
 
-export type TaskCadence = "daily" | "weekly" | "monthly" | "seasonal";
+export type TaskCadence = "daily" | "weekly" | "monthly" | "seasonal" | "as_needed";
 
 export type Task = {
   id: string;
@@ -16,6 +16,10 @@ export type Task = {
   required: boolean;
   sortOrder: number;
   active: boolean;
+  /** Shown under "Today in this zone" on Manage when set */
+  spotlightToday?: boolean;
+  /** Daily task excluded from the "Daily reset" list (shown only in Today preview) */
+  dailyPreviewOnly?: boolean;
 };
 
 export type RoutineBlock = {
@@ -59,6 +63,8 @@ export type Settings = {
   currentZoneIds: string[];
   currentZoneId: string;
   scheduledZoneDates: Record<string, string[]>;
+  /** zoneId -> calendar quarter key (YYYY-Q1..Q4) when seasonal projects were skipped */
+  seasonalSkips: Record<string, string>;
   firstRunComplete: boolean;
   lastAutoZoneDate?: string;
 };

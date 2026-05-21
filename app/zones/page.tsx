@@ -5,6 +5,8 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import type { Task, TaskCadence, Zone, ZoneFrequency } from "@/lib/types";
+import { getCleaningDate, getSeasonQuarterKey } from "@/lib/date";
+import { sortTasks } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [
@@ -20,8 +22,11 @@ export default function ZonesPage() {
     selectedZoneIds,
     routineTasks,
     dailyLog,
+    settings,
     addZoneToday,
     removeZoneToday,
+    scheduleZoneTomorrow,
+    skipSeasonForZone,
     deleteZone,
     updateZone,
   } = useCleaningApp();
@@ -101,14 +106,24 @@ export default function ZonesPage() {
           const zoneTasks = routineTasks.filter(
             (task) => task.zoneId === zone.id,
           );
+          const quarterKey = getSeasonQuarterKey(
+            getCleaningDate(settings.resetTime),
+          );
+          const seasonalSkipped =
+            settings.seasonalSkips[zone.id] === quarterKey;
           const dailyTasks = zoneTasks.filter(
             (t) => !t.cadence || t.cadence === "daily",
           );
+          const dailyResetTasks = sortTasks(
+            dailyTasks.filter((t) => !t.dailyPreviewOnly),
+          );
           const weeklyTasks = zoneTasks.filter((t) => t.cadence === "weekly");
           const monthlyTasks = zoneTasks.filter((t) => t.cadence === "monthly");
-          const seasonalTasks = zoneTasks.filter(
+          const seasonalTasksRaw = zoneTasks.filter(
             (t) => t.cadence === "seasonal",
           );
+          const seasonalTasks = seasonalSkipped ? [] : seasonalTasksRaw;
+          const adHocTasks = zoneTasks.filter((t) => t.cadence === "as_needed");
           const dailyMinutes = dailyTasks.reduce(
             (s, t) => s + t.estimatedMinutes,
             0,
@@ -272,7 +287,7 @@ export default function ZonesPage() {
                             ? "Active"
                             : "Due today"
                       }
-                      tasks={dailyTasks}
+                      tasks={dailyResetTasks}
                       isExpanded={
                         expandedCadence?.zoneId === zone.id &&
                         expandedCadence?.cadence === "daily"
@@ -295,10 +310,14 @@ export default function ZonesPage() {
                         completedTaskIds={completedTaskIds}
                       />
                     ) : null}
-                    {seasonalTasks.length > 0 ? (
+                    {seasonalTasksRaw.length > 0 ? (
                       <CadenceRow
                         label="Seasonal projects"
-                        status="Due this quarter"
+                        status={
+                          seasonalSkipped
+                            ? "Skipped this season"
+                            : "Due this quarter"
+                        }
                         tasks={seasonalTasks}
                         isExpanded={
                           expandedCadence?.zoneId === zone.id &&
@@ -309,29 +328,49 @@ export default function ZonesPage() {
                         completedTaskIds={completedTaskIds}
                       />
                     ) : null}
+                    {adHocTasks.length > 0 ? (
+                      <CadenceRow
+                        label="As needed"
+                        status="When you notice"
+                        tasks={adHocTasks}
+                        isExpanded={
+                          expandedCadence?.zoneId === zone.id &&
+                          expandedCadence?.cadence === "as_needed"
+                        }
+                        showViewTasks={isSelected}
+                        onToggle={() => toggleCadence(zone.id, "as_needed")}
+                        completedTaskIds={completedTaskIds}
+                      />
+                    ) : null}
                   </div>
 
-                  {!isSelected ? (
-                    <div className="mt-4">
-                      <button
-                        type="button"
-                        onClick={() => addZoneToday(zone.id)}
-                        className="min-h-12 w-full rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
-                      >
-                        Start {zone.name.toLowerCase()} reset
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="mt-4">
-                      <button
-                        type="button"
-                        className="min-h-12 w-full rounded-2xl bg-emerald-100 px-4 text-sm font-black text-emerald-900"
-                        disabled
-                      >
-                        {zone.name} reset started
-                      </button>
-                    </div>
-                  )}
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      disabled={isSelected}
+                      onClick={() => addZoneToday(zone.id)}
+                      className="min-h-11 rounded-2xl bg-emerald-950 px-2 text-xs font-black text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500"
+                    >
+                      {isSelected ? "Started" : "Start"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scheduleZoneTomorrow(zone.id)}
+                      className="min-h-11 rounded-2xl bg-stone-100 px-2 text-xs font-black text-stone-800 ring-1 ring-stone-200 transition hover:bg-stone-200"
+                    >
+                      Schedule
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        seasonalTasksRaw.length === 0 || seasonalSkipped
+                      }
+                      onClick={() => skipSeasonForZone(zone.id)}
+                      className="min-h-11 rounded-2xl bg-amber-50 px-2 text-xs font-black text-amber-950 ring-1 ring-amber-100 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400 disabled:ring-stone-200"
+                    >
+                      Skip this season
+                    </button>
+                  </div>
                 </>
               )}
             </article>
@@ -357,6 +396,33 @@ export default function ZonesPage() {
                   onToggle={() => toggleCadence(zone.id, "weekly")}
                   completedTaskIds={completedTaskIds}
                 />
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    disabled={isSelected}
+                    onClick={() => addZoneToday(zone.id)}
+                    className="min-h-11 rounded-2xl bg-emerald-950 px-2 text-xs font-black text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500"
+                  >
+                    {isSelected ? "Started" : "Start"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scheduleZoneTomorrow(zone.id)}
+                    className="min-h-11 rounded-2xl bg-stone-100 px-2 text-xs font-black text-stone-800 ring-1 ring-stone-200 transition hover:bg-stone-200"
+                  >
+                    Schedule
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      seasonalTasksRaw.length === 0 || seasonalSkipped
+                    }
+                    onClick={() => skipSeasonForZone(zone.id)}
+                    className="min-h-11 rounded-2xl bg-amber-50 px-2 text-xs font-black text-amber-950 ring-1 ring-amber-100 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400 disabled:ring-stone-200"
+                  >
+                    Skip this season
+                  </button>
+                </div>
               </article>
             ) : null}
             </Fragment>
@@ -457,6 +523,10 @@ function cadenceStatusStyle(status: string): string {
       return "bg-violet-100 text-violet-800";
     case "Due this quarter":
       return "bg-orange-100 text-orange-800";
+    case "Skipped this season":
+      return "bg-stone-200 text-stone-700";
+    case "When you notice":
+      return "bg-stone-100 text-stone-600";
     default:
       return "bg-stone-100 text-stone-600";
   }

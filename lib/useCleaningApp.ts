@@ -7,7 +7,7 @@ import {
   templates,
   zones as defaultZones,
 } from "./data";
-import { formatLocalDate, getCleaningDate } from "./date";
+import { formatLocalDate, getCleaningDate, getSeasonQuarterKey } from "./date";
 import { calculateCompletions, calculateDailyCompletion } from "./progress";
 import {
   clearLocalData,
@@ -450,9 +450,12 @@ export function useCleaningApp() {
         nextTasks,
         nextSettings.currentZoneIds,
       );
+      const remainingSeasonalSkips = { ...nextSettings.seasonalSkips };
+      delete remainingSeasonalSkips[zoneId];
       const settingsWithoutDeletedZone = {
         ...nextSettings,
         scheduledZoneDates: remainingScheduledZoneDates,
+        seasonalSkips: remainingSeasonalSkips,
       };
 
       saveRoutineData(nextRoutineData);
@@ -525,14 +528,15 @@ export function useCleaningApp() {
       const blockTasks = routineData.tasks.filter(
         (task) => task.block === input.block,
       );
+      const cadence = input.cadence || "daily";
       const nextTask: Task = {
         id: createLocalId("task"),
         title,
         zoneId: input.zoneId || undefined,
         block: input.block,
-        cadence: input.cadence || "daily",
+        cadence,
         estimatedMinutes: Math.max(1, Math.round(input.estimatedMinutes || 1)),
-        required: true,
+        required: cadence !== "as_needed",
         sortOrder:
           blockTasks.reduce((max, task) => Math.max(max, task.sortOrder), 0) + 1,
         active: true,
@@ -600,16 +604,18 @@ export function useCleaningApp() {
             .filter((task) => task.block === input.block && task.id !== taskId)
             .reduce((max, task) => Math.max(max, task.sortOrder), 0) + 1
         : taskToUpdate.sortOrder;
+      const nextCadence = input.cadence ?? taskToUpdate.cadence ?? "daily";
       const nextTasks = routineData.tasks.map((task) =>
         task.id === taskId
           ? {
               ...task,
               title,
               block: input.block,
-              cadence: input.cadence || task.cadence,
+              cadence: nextCadence,
               zoneId: input.zoneId || undefined,
               estimatedMinutes: Math.max(1, Math.round(input.estimatedMinutes || 1)),
               sortOrder: nextSortOrder,
+              required: nextCadence !== "as_needed",
             }
           : task,
       );
@@ -626,6 +632,27 @@ export function useCleaningApp() {
       );
     },
     [reconcileDailyLogForTasks, routineData, settings.currentZoneIds],
+  );
+
+  const skipSeasonForZone = useCallback(
+    (zoneId: string) => {
+      setSettings((currentSettings) => {
+        const quarterKey = getSeasonQuarterKey(
+          getCleaningDate(currentSettings.resetTime),
+        );
+        const nextSeasonalSkips = {
+          ...(currentSettings.seasonalSkips ?? {}),
+          [zoneId]: quarterKey,
+        };
+        const nextSettings = normalizeSettings(
+          { ...currentSettings, seasonalSkips: nextSeasonalSkips },
+          routineData.zones,
+        );
+        saveSettings(nextSettings);
+        return nextSettings;
+      });
+    },
+    [routineData.zones],
   );
 
   const clearAllLocalData = useCallback(() => {
@@ -663,6 +690,7 @@ export function useCleaningApp() {
     removeZoneToday,
     scheduleZoneTomorrow,
     removeZoneTomorrow,
+    skipSeasonForZone,
     startTemplate,
     setTaskCompleted,
     resetToday,
@@ -710,6 +738,15 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
       ]),
   );
 
+  const seasonalSkips = Object.fromEntries(
+    Object.entries(settings.seasonalSkips ?? {}).filter(
+      ([zoneId, quarterKey]) =>
+        validZoneIds.has(zoneId) &&
+        typeof quarterKey === "string" &&
+        /^\d{4}-Q[1-4]$/.test(quarterKey),
+    ),
+  );
+
   return {
     ...defaultSettings,
     ...settings,
@@ -717,6 +754,7 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
     currentZoneIds,
     currentZoneId,
     scheduledZoneDates,
+    seasonalSkips,
   };
 }
 

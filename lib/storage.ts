@@ -30,6 +30,7 @@ export const defaultSettings: Settings = {
   currentZoneIds: [defaultZoneId],
   currentZoneId: defaultZoneId,
   scheduledZoneDates: {},
+  seasonalSkips: {},
   firstRunComplete: false,
 };
 
@@ -57,11 +58,18 @@ export function loadSettings(): Settings {
         ? normalizeScheduledZoneDates(parsedSettings.scheduledZoneDates)
         : defaultSettings.scheduledZoneDates;
 
+    const seasonalSkips =
+      parsedSettings.seasonalSkips &&
+      typeof parsedSettings.seasonalSkips === "object"
+        ? (parsedSettings.seasonalSkips as Record<string, string>)
+        : defaultSettings.seasonalSkips;
+
     return {
       ...defaultSettings,
       ...parsedSettings,
       currentZoneIds,
       scheduledZoneDates,
+      seasonalSkips,
     };
   } catch {
     return defaultSettings;
