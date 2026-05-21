@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import type { Task, TaskCadence, Zone, ZoneFrequency } from "@/lib/types";
-import { getCleaningDate } from "@/lib/date";
+import { formatDisplayDate, getCleaningDate } from "@/lib/date";
 import { sortTasks } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
@@ -222,9 +222,47 @@ export default function ZonesPage() {
                         {zone.name}
                       </h2>
                       <p className="mt-1 text-sm font-semibold text-stone-600">
-                        {dailyTasks.length} task
-                        {dailyTasks.length === 1 ? "" : "s"} today,{" "}
-                        {dailyMinutes} min
+                        {(() => {
+                          const cleaningDate = getCleaningDate(settings.resetTime);
+                          const zoneScheduledDates =
+                            settings.scheduledZoneDates?.[zone.id] ?? [];
+                          const futureScheduledDates = zoneScheduledDates.filter(
+                            (d) => d > cleaningDate,
+                          );
+                          const nextFutureSchedule =
+                            [...futureScheduledDates].sort()[0] ?? null;
+                          const scheduledForTodayNotStarted =
+                            !isSelected && zoneScheduledDates.includes(cleaningDate);
+
+                          if (
+                            !isSelected &&
+                            (nextFutureSchedule || scheduledForTodayNotStarted)
+                          ) {
+                            return nextFutureSchedule ? (
+                              <>
+                                <span className="font-black text-emerald-900">
+                                  Scheduled
+                                </span>
+                                <span className="text-stone-600">
+                                  {" "}
+                                  · {formatDisplayDate(nextFutureSchedule)}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="font-black text-emerald-900">
+                                Scheduled
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <>
+                              {dailyTasks.length} task
+                              {dailyTasks.length === 1 ? "" : "s"} today,{" "}
+                              {dailyMinutes} min
+                            </>
+                          );
+                        })()}
                       </p>
                     </div>
                     <div className="relative shrink-0">
@@ -284,13 +322,32 @@ export default function ZonesPage() {
                   <div className="mt-4 space-y-2">
                     <CadenceRow
                       label="Daily reset"
-                      status={
-                        allDailyDone
-                          ? "Done today"
-                          : isSelected
-                            ? "Active"
-                            : "Due today"
-                      }
+                      status={(() => {
+                        const cleaningDate = getCleaningDate(settings.resetTime);
+                        const zoneScheduledDates =
+                          settings.scheduledZoneDates?.[zone.id] ?? [];
+                        const futureScheduledDates = zoneScheduledDates.filter(
+                          (d) => d > cleaningDate,
+                        );
+                        const nextFutureSchedule =
+                          [...futureScheduledDates].sort()[0] ?? null;
+                        const scheduledForTodayNotStarted =
+                          !isSelected && zoneScheduledDates.includes(cleaningDate);
+
+                        if (allDailyDone) {
+                          return "Done today";
+                        }
+
+                        if (isSelected) {
+                          return "Active";
+                        }
+
+                        if (nextFutureSchedule || scheduledForTodayNotStarted) {
+                          return "Scheduled";
+                        }
+
+                        return "Due today";
+                      })()}
                       tasks={dailyResetTasks}
                       isExpanded={
                         expandedCadence?.zoneId === zone.id &&
@@ -658,6 +715,8 @@ function cadenceStatusStyle(status: string): string {
       return "bg-emerald-100 text-emerald-800";
     case "Due today":
       return "bg-amber-100 text-amber-800";
+    case "Scheduled":
+      return "bg-violet-100 text-violet-900";
     case "Due this week":
       return "bg-sky-100 text-sky-800";
     case "Due this month":
