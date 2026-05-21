@@ -268,23 +268,23 @@ export function useCleaningApp() {
           ? Array.from(new Set([...currentSettings.currentZoneIds, zoneId]))
           : currentSettings.currentZoneIds;
 
-        let nextUpcomingTaskDates = currentSettings.upcomingTaskDates ?? {};
-        if (reflectsOnTodayTab) {
-          const mergedUpcoming = { ...nextUpcomingTaskDates };
-          for (const task of routineData.tasks) {
-            if (!task.active || task.zoneId !== zoneId) {
-              continue;
-            }
-            const cadence = task.cadence ?? "daily";
-            const shouldSetDueToday =
-              (context === "monthly" && cadence === "monthly") ||
-              (context === "seasonal" && cadence === "seasonal") ||
-              (context === "zone" && (cadence === "monthly" || cadence === "seasonal"));
-            if (shouldSetDueToday) {
-              mergedUpcoming[task.id] = isoDate;
-            }
+        const mergedUpcoming = {
+          ...(currentSettings.upcomingTaskDates ?? {}),
+        };
+        let changedUpcoming = false;
+        for (const task of routineData.tasks) {
+          if (!task.active || task.zoneId !== zoneId) {
+            continue;
           }
-          nextUpcomingTaskDates = mergedUpcoming;
+          const cadence = task.cadence ?? "daily";
+          const shouldSyncDueWithSchedule =
+            (context === "monthly" && cadence === "monthly") ||
+            (context === "seasonal" && cadence === "seasonal") ||
+            (context === "zone" && (cadence === "monthly" || cadence === "seasonal"));
+          if (shouldSyncDueWithSchedule) {
+            mergedUpcoming[task.id] = isoDate;
+            changedUpcoming = true;
+          }
         }
 
         const nextSettings = normalizeSettings(
@@ -294,9 +294,9 @@ export function useCleaningApp() {
               ? {
                   currentZoneId: nextZoneIds[0] ?? currentSettings.currentZoneId,
                   currentZoneIds: nextZoneIds,
-                  upcomingTaskDates: nextUpcomingTaskDates,
                 }
               : {}),
+            ...(changedUpcoming ? { upcomingTaskDates: mergedUpcoming } : {}),
             scheduledZoneDates: addScheduledZoneDate(
               currentSettings.scheduledZoneDates,
               zoneId,

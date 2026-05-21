@@ -394,6 +394,20 @@ export default function ZonesPage() {
                       onToggle={() => toggleCadence(zone.id, "daily")}
                       completedTaskIds={completedTaskIds}
                     />
+                    {zone.id === weeklyAnchorZoneId && showKitchenWeeklyBlock ? (
+                      <CadenceRow
+                        label="Weekly care"
+                        status="Due this week"
+                        tasks={allWeeklyTasks}
+                        isExpanded={
+                          expandedCadence?.zoneId === weeklyAnchorZoneId &&
+                          expandedCadence?.cadence === "weekly"
+                        }
+                        showViewTasks={weeklyTasksViewable}
+                        onToggle={() => toggleCadence(weeklyAnchorZoneId, "weekly")}
+                        completedTaskIds={completedTaskIds}
+                      />
+                    ) : null}
                     {monthlyTasks.length > 0 || seasonalTasks.length > 0 ? (
                       <div className="space-y-2">
                         {monthlyTasks.length > 0 ? (
@@ -441,20 +455,6 @@ export default function ZonesPage() {
                           />
                         ) : null}
                       </div>
-                    ) : null}
-                    {zone.id === weeklyAnchorZoneId && showKitchenWeeklyBlock ? (
-                      <CadenceRow
-                        label="Weekly care"
-                        status="Due this week"
-                        tasks={allWeeklyTasks}
-                        isExpanded={
-                          expandedCadence?.zoneId === weeklyAnchorZoneId &&
-                          expandedCadence?.cadence === "weekly"
-                        }
-                        showViewTasks={weeklyTasksViewable}
-                        onToggle={() => toggleCadence(weeklyAnchorZoneId, "weekly")}
-                        completedTaskIds={completedTaskIds}
-                      />
                     ) : null}
                     {adHocTasks.length > 0 ? (
                       <CadenceRow
