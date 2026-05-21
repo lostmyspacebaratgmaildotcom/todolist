@@ -12,7 +12,7 @@ import type {
   ZoneScheduleCadenceContext,
 } from "@/lib/types";
 import { getCleaningDate, getLocalCalendarDate } from "@/lib/date";
-import { sortTasks } from "@/lib/progress";
+import { getZoneDailyResetTasks, sortTasks } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [
@@ -164,9 +164,7 @@ export default function ZonesPage() {
           const dailyTasks = zoneTasks.filter(
             (t) => !t.cadence || t.cadence === "daily",
           );
-          const dailyResetTasks = sortTasks(
-            dailyTasks.filter((t) => !t.dailyPreviewOnly),
-          );
+          const dailyResetTasks = getZoneDailyResetTasks(routineTasks, zone.id);
           const monthlyTasks = zoneTasks.filter((t) => t.cadence === "monthly");
           const seasonalTasks = zoneTasks.filter(
             (t) => t.cadence === "seasonal",
@@ -369,6 +367,7 @@ export default function ZonesPage() {
                   </div>
 
                   <div className="mt-4 space-y-2">
+                    {dailyResetTasks.length > 0 ? (
                     <CadenceRow
                       label="Daily reset"
                       status="Active"
@@ -381,6 +380,7 @@ export default function ZonesPage() {
                       onToggle={() => toggleCadence(zone.id, "daily")}
                       completedTaskIds={completedTaskIds}
                     />
+                    ) : null}
                     {zone.id === weeklyAnchorZoneId && showKitchenWeeklyBlock ? (
                       <CadenceRow
                         label="Weekly care"

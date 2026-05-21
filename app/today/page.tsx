@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { ProgressPill } from "@/components/ProgressPill";
 import { RoutineBlockCard } from "@/components/RoutineBlockCard";
 import { ZoneTimer } from "@/components/ZoneTimer";
 import { formatDisplayDate } from "@/lib/date";
-import { getCurrentBlockId, getTasksForBlock } from "@/lib/progress";
+import {
+  getCurrentBlockId,
+  getTasksForBlock,
+  getZoneDailyResetTasks,
+} from "@/lib/progress";
 import type { RoutineBlockId } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
@@ -18,6 +22,7 @@ export default function TodayPage() {
     todayTabCalendarDate,
     template,
     zones,
+    routineTasks,
     routineBlocks,
     todayTasks,
     setTaskCompleted,
@@ -30,6 +35,14 @@ export default function TodayPage() {
   useEffect(() => {
     setCurrentBlockId(getCurrentBlockId());
   }, []);
+
+  const zonesWithDailyReset = useMemo(
+    () =>
+      zones.filter(
+        (zone) => getZoneDailyResetTasks(routineTasks, zone.id).length > 0,
+      ),
+    [routineTasks, zones],
+  );
 
   const orderedBlocks = [
     ...routineBlocks.filter((block) => block.id === currentBlockId),
@@ -75,9 +88,13 @@ export default function TodayPage() {
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
               Zones for today
             </p>
-            {zones.length > 0 ? (
+            {zones.length === 0 ? (
+              <h2 className="mt-1 text-2xl font-black text-stone-950">
+                No zones in this routine
+              </h2>
+            ) : zonesWithDailyReset.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-2">
-                {zones.map((zone) => (
+                {zonesWithDailyReset.map((zone) => (
                   <span
                     key={zone.id}
                     className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-900"
@@ -88,16 +105,17 @@ export default function TodayPage() {
               </div>
             ) : (
               <h2 className="mt-1 text-2xl font-black text-stone-950">
-                No zones in this routine
+                No zones have daily reset tasks yet
               </h2>
             )}
             <p className="mt-2 text-sm leading-6 text-stone-600">
-              Daily resets include every zone. Weekly, monthly, and seasonal items
-              still follow the schedule and “on today” rules from the Zones page.
+              Pills list zones that have at least one active daily reset task.
+              Weekly, monthly, and seasonal items still follow the schedule and
+              on-today rules from the Zones page.
             </p>
           </div>
           <div className="rounded-2xl bg-stone-100 px-3 py-2 text-center text-xs font-black text-stone-700">
-            {zones.length} zones
+            {zonesWithDailyReset.length} zones
           </div>
         </div>
       </section>

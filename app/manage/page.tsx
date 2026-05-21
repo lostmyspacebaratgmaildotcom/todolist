@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import type { RoutineBlockId, Task, TaskCadence, ZoneFrequency } from "@/lib/types";
-import { sortTasks } from "@/lib/progress";
+import { getZoneDailyResetTasks, sortTasks } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [
@@ -117,10 +117,7 @@ export default function ManagePage() {
           const spotlightTasks = sortTasks(
             zoneTasks.filter((t) => Boolean(t.spotlightToday)),
           );
-          const dailyTasks = zoneTasks.filter((t) => !t.cadence || t.cadence === "daily");
-          const dailyResetTasks = sortTasks(
-            dailyTasks.filter((t) => !t.dailyPreviewOnly),
-          );
+          const dailyResetTasks = getZoneDailyResetTasks(routineTasks, zone.id);
           const weeklyTasks = zoneTasks.filter((t) => t.cadence === "weekly");
           const monthlyTasks = zoneTasks.filter((t) => t.cadence === "monthly");
           const seasonalTasks = zoneTasks.filter((t) => t.cadence === "seasonal");
