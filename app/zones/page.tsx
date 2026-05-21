@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
@@ -121,8 +121,8 @@ export default function ZonesPage() {
           const isEditing = editingZoneId === zone.id;
 
           return (
+            <Fragment key={zone.id}>
             <article
-              key={zone.id}
               className="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-stone-200"
             >
               {isEditing ? (
@@ -281,20 +281,6 @@ export default function ZonesPage() {
                       onToggle={() => toggleCadence(zone.id, "daily")}
                       completedTaskIds={completedTaskIds}
                     />
-                    {weeklyTasks.length > 0 ? (
-                      <CadenceRow
-                        label="Weekly care"
-                        status="Due this week"
-                        tasks={weeklyTasks}
-                        isExpanded={
-                          expandedCadence?.zoneId === zone.id &&
-                          expandedCadence?.cadence === "weekly"
-                        }
-                        showViewTasks={isSelected}
-                        onToggle={() => toggleCadence(zone.id, "weekly")}
-                        completedTaskIds={completedTaskIds}
-                      />
-                    ) : null}
                     {monthlyTasks.length > 0 ? (
                       <CadenceRow
                         label="Monthly care"
@@ -349,6 +335,31 @@ export default function ZonesPage() {
                 </>
               )}
             </article>
+            {weeklyTasks.length > 0 ? (
+              <article className="rounded-[2rem] border border-sky-100 bg-gradient-to-b from-sky-50/80 to-white p-5 shadow-sm ring-1 ring-sky-100">
+                <div className="mb-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-800">
+                    Weekly care
+                  </p>
+                  <h3 className="mt-1 text-lg font-black text-stone-950">
+                    {zone.name}
+                  </h3>
+                </div>
+                <CadenceRow
+                  label="Weekly care"
+                  status="Due this week"
+                  tasks={weeklyTasks}
+                  isExpanded={
+                    expandedCadence?.zoneId === zone.id &&
+                    expandedCadence?.cadence === "weekly"
+                  }
+                  showViewTasks={isSelected}
+                  onToggle={() => toggleCadence(zone.id, "weekly")}
+                  completedTaskIds={completedTaskIds}
+                />
+              </article>
+            ) : null}
+            </Fragment>
           );
         })}
       </div>
