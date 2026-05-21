@@ -139,6 +139,19 @@ export default function ZonesPage() {
           const isMenuOpen = openMenuId === zone.id;
           const isEditing = editingZoneId === zone.id;
 
+          const cleaningDate = getCleaningDate(settings.resetTime);
+          const zoneScheduledDates = settings.scheduledZoneDates?.[zone.id] ?? [];
+          const futureScheduledDates = zoneScheduledDates.filter(
+            (date) => date > cleaningDate,
+          );
+          const nextFutureSchedule =
+            [...futureScheduledDates].sort()[0] ?? null;
+          const scheduledForTodayNotStarted =
+            !isSelected && zoneScheduledDates.includes(cleaningDate);
+          const showScheduledZoneState =
+            !isSelected &&
+            (Boolean(nextFutureSchedule) || scheduledForTodayNotStarted);
+
           return (
             <Fragment key={zone.id}>
             <article
@@ -222,47 +235,29 @@ export default function ZonesPage() {
                         {zone.name}
                       </h2>
                       <p className="mt-1 text-sm font-semibold text-stone-600">
-                        {(() => {
-                          const cleaningDate = getCleaningDate(settings.resetTime);
-                          const zoneScheduledDates =
-                            settings.scheduledZoneDates?.[zone.id] ?? [];
-                          const futureScheduledDates = zoneScheduledDates.filter(
-                            (d) => d > cleaningDate,
-                          );
-                          const nextFutureSchedule =
-                            [...futureScheduledDates].sort()[0] ?? null;
-                          const scheduledForTodayNotStarted =
-                            !isSelected && zoneScheduledDates.includes(cleaningDate);
-
-                          if (
-                            !isSelected &&
-                            (nextFutureSchedule || scheduledForTodayNotStarted)
-                          ) {
-                            return nextFutureSchedule ? (
-                              <>
-                                <span className="font-black text-emerald-900">
-                                  Scheduled
-                                </span>
-                                <span className="text-stone-600">
-                                  {" "}
-                                  · {formatDisplayDate(nextFutureSchedule)}
-                                </span>
-                              </>
-                            ) : (
+                        {showScheduledZoneState ? (
+                          nextFutureSchedule ? (
+                            <>
                               <span className="font-black text-emerald-900">
                                 Scheduled
                               </span>
-                            );
-                          }
-
-                          return (
-                            <>
-                              {dailyTasks.length} task
-                              {dailyTasks.length === 1 ? "" : "s"} today,{" "}
-                              {dailyMinutes} min
+                              <span className="text-stone-600">
+                                {" "}
+                                · {formatDisplayDate(nextFutureSchedule)}
+                              </span>
                             </>
-                          );
-                        })()}
+                          ) : (
+                            <span className="font-black text-emerald-900">
+                              Scheduled
+                            </span>
+                          )
+                        ) : (
+                          <>
+                            {dailyTasks.length} task
+                            {dailyTasks.length === 1 ? "" : "s"} today,{" "}
+                            {dailyMinutes} min
+                          </>
+                        )}
                       </p>
                     </div>
                     <div className="relative shrink-0">
@@ -322,32 +317,15 @@ export default function ZonesPage() {
                   <div className="mt-4 space-y-2">
                     <CadenceRow
                       label="Daily reset"
-                      status={(() => {
-                        const cleaningDate = getCleaningDate(settings.resetTime);
-                        const zoneScheduledDates =
-                          settings.scheduledZoneDates?.[zone.id] ?? [];
-                        const futureScheduledDates = zoneScheduledDates.filter(
-                          (d) => d > cleaningDate,
-                        );
-                        const nextFutureSchedule =
-                          [...futureScheduledDates].sort()[0] ?? null;
-                        const scheduledForTodayNotStarted =
-                          !isSelected && zoneScheduledDates.includes(cleaningDate);
-
-                        if (allDailyDone) {
-                          return "Done today";
-                        }
-
-                        if (isSelected) {
-                          return "Active";
-                        }
-
-                        if (nextFutureSchedule || scheduledForTodayNotStarted) {
-                          return "Scheduled";
-                        }
-
-                        return "Due today";
-                      })()}
+                      status={
+                        allDailyDone
+                          ? "Done today"
+                          : isSelected
+                            ? "Active"
+                            : showScheduledZoneState
+                              ? "Scheduled"
+                              : "Due today"
+                      }
                       tasks={dailyResetTasks}
                       isExpanded={
                         expandedCadence?.zoneId === zone.id &&
@@ -362,7 +340,11 @@ export default function ZonesPage() {
                         {monthlyTasks.length > 0 ? (
                           <CadenceRow
                             label="Monthly care"
-                            status="Due this month"
+                            status={
+                              showScheduledZoneState
+                                ? "Scheduled"
+                                : "Due this month"
+                            }
                             tasks={monthlyTasks}
                             isExpanded={
                               expandedCadence?.zoneId === zone.id &&
@@ -378,7 +360,11 @@ export default function ZonesPage() {
                         {seasonalTasks.length > 0 ? (
                           <CadenceRow
                             label="Seasonal projects"
-                            status="Due this quarter"
+                            status={
+                              showScheduledZoneState
+                                ? "Scheduled"
+                                : "Due this quarter"
+                            }
                             tasks={seasonalTasks}
                             isExpanded={
                               expandedCadence?.zoneId === zone.id &&
