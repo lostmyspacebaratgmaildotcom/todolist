@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { CleaningAppProvider } from "@/lib/useCleaningApp";
 
 export const metadata: Metadata = {
   title: "Apartment Reset",
@@ -19,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><CleaningAppProvider>{children}</CleaningAppProvider></body>
     </html>
   );
 }

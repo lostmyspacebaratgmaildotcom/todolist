@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   defaultZoneId,
   routineBlocks,
@@ -35,7 +43,7 @@ import type {
 /** Weekly schedule UI is anchored on the Kitchen zone card (see Zones page). */
 const WEEKLY_SCHEDULE_ANCHOR_ZONE_ID = "kitchen";
 
-export function useCleaningApp() {
+function useCleaningAppState() {
   const [isReady, setIsReady] = useState(false);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [routineData, setRoutineData] = useState<EditableRoutineData>(() =>
@@ -43,6 +51,7 @@ export function useCleaningApp() {
   );
   const [dailyLog, setDailyLog] = useState<DailyLog | null>(null);
   const [calendarDay, setCalendarDay] = useState(() => getLocalCalendarDate());
+  const [asNeededLocalPins, setAsNeededLocalPins] = useState<Set<string>>(() => new Set());
 
   const template = useMemo(
     () => getTemplateById(settings.selectedTemplateId),
@@ -85,6 +94,29 @@ export function useCleaningApp() {
     const id = window.setInterval(tick, 30_000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    setAsNeededLocalPins(new Set());
+  }, [calendarDay]);
+
+  useEffect(() => {
+    const cal = getLocalCalendarDate();
+    setAsNeededLocalPins((prev) => {
+      if (prev.size === 0) {
+        return prev;
+      }
+
+      const upcoming = settings.upcomingTaskDates ?? {};
+      const next = new Set(prev);
+      for (const id of prev) {
+        if (upcoming[id] === cal) {
+          next.delete(id);
+        }
+      }
+
+      return next.size === prev.size ? prev : next;
+    });
+  }, [settings.upcomingTaskDates, calendarDay]);
 
   useEffect(() => {
     const storedSettings = loadSettings();
@@ -844,10 +876,17 @@ export function useCleaningApp() {
       const taskMeta = routineData.tasks.find((candidate) => candidate.id === taskId);
       const zoneId = taskMeta?.zoneId;
 
+      setAsNeededLocalPins((prev) => {
+        const next = new Set(prev);
+        next.add(taskId);
+        return next;
+      });
+
       setSettings((currentSettings) => {
         const upcoming = currentSettings.upcomingTaskDates ?? {};
         if (upcoming[taskId] === calendarToday) {
-          return currentSettings;
+          const nextSettings = currentSettings;
+          return nextSettings;
         }
 
         let currentZoneIds = currentSettings.currentZoneIds;
@@ -855,7 +894,7 @@ export function useCleaningApp() {
           currentZoneIds = [...currentZoneIds, zoneId];
         }
 
-        return normalizeSettings(
+        const nextSettings = normalizeSettings(
           {
             ...currentSettings,
             currentZoneIds,
@@ -867,6 +906,10 @@ export function useCleaningApp() {
           },
           routineData.zones,
         );
+
+        saveSettings(nextSettings);
+
+        return nextSettings;
       });
 
       setDailyLog((currentLog) => {
@@ -899,8 +942,8 @@ export function useCleaningApp() {
         return;
       }
 
-      setSettings((currentSettings) =>
-        normalizeSettings(
+      setSettings((currentSettings) => {
+        const nextSettings = normalizeSettings(
           {
             ...currentSettings,
             upcomingTaskDates: {
@@ -909,8 +952,12 @@ export function useCleaningApp() {
             },
           },
           routineData.zones,
-        ),
-      );
+        );
+
+        saveSettings(nextSettings);
+
+        return nextSettings;
+      });
     },
     [routineData.zones],
   );
@@ -997,7 +1044,8 @@ export function useCleaningApp() {
       }
 
       const task = routineData.tasks.find((candidate) => candidate.id === taskId);
-      if (!task || task.cadence === "as_needed") {
+      const cadence = task?.cadence ?? "daily";
+      if (!task || cadence === "as_needed") {
         ids.add(taskId);
       }
     }
@@ -1009,8 +1057,13 @@ export function useCleaningApp() {
       }
     }
 
+    for (const id of asNeededLocalPins) {
+      ids.add(id);
+    }
+
     return ids;
   }, [
+    asNeededLocalPins,
     calendarDay,
     dailyLog?.asNeededOnTodayTaskIds,
     routineData.tasks,
@@ -1053,6 +1106,26 @@ export function useCleaningApp() {
     updateTask,
     clearAllLocalData,
   };
+}
+
+export type CleaningAppContextValue = ReturnType<typeof useCleaningAppState>;
+
+const CleaningAppContext = createContext<CleaningAppContextValue | null>(null);
+
+export function CleaningAppProvider({ children }: { children: ReactNode }) {
+  const value = useCleaningAppState();
+
+  return <CleaningAppContext.Provider value={value}>{children}</CleaningAppContext.Provider>;
+}
+
+export function useCleaningApp(): CleaningAppContextValue {
+  const value = useContext(CleaningAppContext);
+
+  if (!value) {
+    throw new Error("useCleaningApp must be used within CleaningAppProvider");
+  }
+
+  return value;
 }
 
 function zoneScheduleCadenceKey(
