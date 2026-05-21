@@ -31,6 +31,12 @@ export function formatLocalDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+
+/** Local calendar date from the device clock (not shifted by daily reset time). */
+export function getLocalCalendarDate(now = new Date()): string {
+  return formatLocalDate(now);
+}
+
 function parseResetTime(resetTime: string): [number, number] {
   const [hour = "3", minute = "0"] = resetTime.split(":");
 

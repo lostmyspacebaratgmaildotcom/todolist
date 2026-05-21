@@ -7,7 +7,7 @@ import {
   templates,
   zones as defaultZones,
 } from "./data";
-import { formatLocalDate, getCleaningDate } from "./date";
+import { formatLocalDate, getCleaningDate, getLocalCalendarDate } from "./date";
 import { mergeMissingUpcomingDates, nextUpcomingDateAfterComplete } from "./upcoming";
 import { calculateCompletions, calculateDailyCompletion } from "./progress";
 import {
@@ -260,14 +260,16 @@ export function useCleaningApp() {
       }
 
       setSettings((currentSettings) => {
-        const today = getCleaningDate(currentSettings.resetTime);
-        const forCleaningToday = isoDate === today;
-        const nextZoneIds = forCleaningToday
+        const cleaningToday = getCleaningDate(currentSettings.resetTime);
+        const calendarToday = getLocalCalendarDate();
+        const reflectsOnTodayTab =
+          isoDate === calendarToday || isoDate === cleaningToday;
+        const nextZoneIds = reflectsOnTodayTab
           ? Array.from(new Set([...currentSettings.currentZoneIds, zoneId]))
           : currentSettings.currentZoneIds;
 
         let nextUpcomingTaskDates = currentSettings.upcomingTaskDates ?? {};
-        if (forCleaningToday) {
+        if (reflectsOnTodayTab) {
           const mergedUpcoming = { ...nextUpcomingTaskDates };
           for (const task of routineData.tasks) {
             if (!task.active || task.zoneId !== zoneId) {
@@ -288,7 +290,7 @@ export function useCleaningApp() {
         const nextSettings = normalizeSettings(
           {
             ...currentSettings,
-            ...(forCleaningToday
+            ...(reflectsOnTodayTab
               ? {
                   currentZoneId: nextZoneIds[0] ?? currentSettings.currentZoneId,
                   currentZoneIds: nextZoneIds,
@@ -847,10 +849,13 @@ export function useCleaningApp() {
     setIsReady(true);
   }, []);
 
+  const todayTabCalendarDate = getLocalCalendarDate();
+
   return {
     isReady,
     settings,
     dailyLog,
+    todayTabCalendarDate,
     template,
     templates,
     zones: routineData.zones,
@@ -995,8 +1000,11 @@ function normalizeSettings(settings: Settings, zones: Zone[]): Settings {
 
 type TodayFilterContext = {
   cleaningDate: string;
+  /** Local calendar YYYY-MM-DD (Today tab headline); not shifted by reset time. */
+  calendarToday: string;
   upcomingTaskDates: Record<string, string>;
   asNeededOnTodayTaskIds: string[];
+  lastZoneScheduleByCadence: Record<string, string>;
 };
 
 function buildTodayFilterCtx(
@@ -1005,8 +1013,10 @@ function buildTodayFilterCtx(
 ): TodayFilterContext {
   return {
     cleaningDate: getCleaningDate(settings.resetTime),
+    calendarToday: getLocalCalendarDate(),
     upcomingTaskDates: settings.upcomingTaskDates ?? {},
     asNeededOnTodayTaskIds: dailyLog?.asNeededOnTodayTaskIds ?? [],
+    lastZoneScheduleByCadence: settings.lastZoneScheduleByCadence ?? {},
   };
 }
 
@@ -1052,6 +1062,17 @@ function filterTasksForToday(
     }
 
     if (cadence === "monthly" || cadence === "seasonal") {
+      const pickKey =
+        cadence === "monthly"
+          ? `${task.zoneId}:monthly`
+          : `${task.zoneId}:seasonal`;
+      const scheduledPick = ctx.lastZoneScheduleByCadence[pickKey];
+      if (
+        typeof scheduledPick === "string" &&
+        scheduledPick === ctx.calendarToday
+      ) {
+        return true;
+      }
       const due = ctx.upcomingTaskDates[task.id];
       if (!due) {
         return false;

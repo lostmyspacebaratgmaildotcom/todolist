@@ -11,7 +11,7 @@ import type {
   ZoneFrequency,
   ZoneScheduleCadenceContext,
 } from "@/lib/types";
-import { getCleaningDate } from "@/lib/date";
+import { getCleaningDate, getLocalCalendarDate } from "@/lib/date";
 import { sortTasks } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
@@ -53,6 +53,20 @@ export default function ZonesPage() {
   const completedTaskIds = new Set(dailyLog?.completedTaskIds ?? []);
   const asNeededOnTodayIds = new Set(dailyLog?.asNeededOnTodayTaskIds ?? []);
 
+  const weeklyAnchorZoneId = "kitchen";
+  const allWeeklyTasks = sortTasks(
+    routineTasks.filter((task) => task.cadence === "weekly"),
+  );
+  const weeklyTaskZoneIds = new Set(
+    allWeeklyTasks.map((task) => task.zoneId).filter(Boolean),
+  );
+  const weeklyTasksViewable = selectedZoneIds.some((id) =>
+    weeklyTaskZoneIds.has(id),
+  );
+  const showKitchenWeeklyBlock =
+    zones.some((candidate) => candidate.id === weeklyAnchorZoneId) &&
+    allWeeklyTasks.length > 0;
+
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [expandedCadence, setExpandedCadence] = useState<{
     zoneId: string;
@@ -77,7 +91,7 @@ export default function ZonesPage() {
       zoneId,
       cadence,
     );
-    setScheduleDateValue(savedPick ?? getCleaningDate(settings.resetTime));
+    setScheduleDateValue(savedPick ?? getLocalCalendarDate());
   }
 
   function startEdit(zone: Zone) {
@@ -149,7 +163,6 @@ export default function ZonesPage() {
           const dailyResetTasks = sortTasks(
             dailyTasks.filter((t) => !t.dailyPreviewOnly),
           );
-          const weeklyTasks = zoneTasks.filter((t) => t.cadence === "weekly");
           const monthlyTasks = zoneTasks.filter((t) => t.cadence === "monthly");
           const seasonalTasks = zoneTasks.filter(
             (t) => t.cadence === "seasonal",
@@ -429,6 +442,20 @@ export default function ZonesPage() {
                         ) : null}
                       </div>
                     ) : null}
+                    {zone.id === weeklyAnchorZoneId && showKitchenWeeklyBlock ? (
+                      <CadenceRow
+                        label="Weekly care"
+                        status="Due this week"
+                        tasks={allWeeklyTasks}
+                        isExpanded={
+                          expandedCadence?.zoneId === weeklyAnchorZoneId &&
+                          expandedCadence?.cadence === "weekly"
+                        }
+                        showViewTasks={weeklyTasksViewable}
+                        onToggle={() => toggleCadence(weeklyAnchorZoneId, "weekly")}
+                        completedTaskIds={completedTaskIds}
+                      />
+                    ) : null}
                     {adHocTasks.length > 0 ? (
                       <CadenceRow
                         label="As needed"
@@ -449,7 +476,9 @@ export default function ZonesPage() {
 
                   <div
                     className={`mt-4 grid gap-2 ${
-                      monthlyTasks.length > 0 || seasonalTasks.length > 0
+                      monthlyTasks.length > 0 ||
+                      seasonalTasks.length > 0 ||
+                      (zone.id === weeklyAnchorZoneId && showKitchenWeeklyBlock)
                         ? "grid-cols-1"
                         : "grid-cols-2"
                     }`}
@@ -473,31 +502,6 @@ export default function ZonesPage() {
                 </>
               )}
             </article>
-            {weeklyTasks.length > 0 ? (
-              <article className="rounded-[2rem] border border-sky-100 bg-gradient-to-b from-sky-50/80 to-white p-5 shadow-sm ring-1 ring-sky-100">
-                <div className="mb-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-800">
-                    Weekly care
-                  </p>
-                  <h3 className="mt-1 text-lg font-black text-stone-950">
-                    {zone.name}
-                  </h3>
-                </div>
-                <CadenceRow
-                  label="Weekly care"
-                  status="Due this week"
-                  tasks={weeklyTasks}
-                  isExpanded={
-                    expandedCadence?.zoneId === zone.id &&
-                    expandedCadence?.cadence === "weekly"
-                  }
-                  showViewTasks={isSelected}
-                  onToggle={() => toggleCadence(zone.id, "weekly")}
-                  completedTaskIds={completedTaskIds}
-                />
-
-              </article>
-            ) : null}
             </Fragment>
           );
         })}
