@@ -266,6 +266,25 @@ export function useCleaningApp() {
           ? Array.from(new Set([...currentSettings.currentZoneIds, zoneId]))
           : currentSettings.currentZoneIds;
 
+        let nextUpcomingTaskDates = currentSettings.upcomingTaskDates ?? {};
+        if (forCleaningToday) {
+          const mergedUpcoming = { ...nextUpcomingTaskDates };
+          for (const task of routineData.tasks) {
+            if (!task.active || task.zoneId !== zoneId) {
+              continue;
+            }
+            const cadence = task.cadence ?? "daily";
+            const shouldSetDueToday =
+              (context === "monthly" && cadence === "monthly") ||
+              (context === "seasonal" && cadence === "seasonal") ||
+              (context === "zone" && (cadence === "monthly" || cadence === "seasonal"));
+            if (shouldSetDueToday) {
+              mergedUpcoming[task.id] = isoDate;
+            }
+          }
+          nextUpcomingTaskDates = mergedUpcoming;
+        }
+
         const nextSettings = normalizeSettings(
           {
             ...currentSettings,
@@ -273,6 +292,7 @@ export function useCleaningApp() {
               ? {
                   currentZoneId: nextZoneIds[0] ?? currentSettings.currentZoneId,
                   currentZoneIds: nextZoneIds,
+                  upcomingTaskDates: nextUpcomingTaskDates,
                 }
               : {}),
             scheduledZoneDates: addScheduledZoneDate(
@@ -291,7 +311,7 @@ export function useCleaningApp() {
         return nextSettings;
       });
     },
-    [routineData.zones],
+    [routineData.tasks, routineData.zones],
   );
 
   const removeZoneTomorrow = useCallback(
