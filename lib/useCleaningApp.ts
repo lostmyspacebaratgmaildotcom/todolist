@@ -841,15 +841,25 @@ export function useCleaningApp() {
   const addAsNeededToToday = useCallback(
     (taskId: string) => {
       const calendarToday = calendarDay;
+      const taskMeta = routineData.tasks.find((candidate) => candidate.id === taskId);
+      const zoneId = taskMeta?.zoneId;
+
       setSettings((currentSettings) => {
         const upcoming = currentSettings.upcomingTaskDates ?? {};
         if (upcoming[taskId] === calendarToday) {
           return currentSettings;
         }
 
+        let currentZoneIds = currentSettings.currentZoneIds;
+        if (zoneId && !currentZoneIds.includes(zoneId)) {
+          currentZoneIds = [...currentZoneIds, zoneId];
+        }
+
         return normalizeSettings(
           {
             ...currentSettings,
+            currentZoneIds,
+            currentZoneId: currentZoneIds[0] ?? currentSettings.currentZoneId,
             upcomingTaskDates: {
               ...upcoming,
               [taskId]: calendarToday,
@@ -880,7 +890,7 @@ export function useCleaningApp() {
         return nextLog;
       });
     },
-    [calendarDay, routineData.zones],
+    [calendarDay, routineData.tasks, routineData.zones],
   );
 
   const updateUpcomingTaskDate = useCallback(
@@ -1231,6 +1241,17 @@ function filterTasksForToday(
       return true;
     }
 
+    if (cadence === "as_needed") {
+      const scheduled = ctx.upcomingTaskDates[task.id];
+      if (typeof scheduled === "string" && scheduled === ctx.calendarToday) {
+        return true;
+      }
+      if (asNeededToday.has(task.id)) {
+        return selectedZones.has(task.zoneId);
+      }
+      return false;
+    }
+
     if (!selectedZones.has(task.zoneId)) {
       return false;
     }
@@ -1270,14 +1291,6 @@ function filterTasksForToday(
       }
 
       return ctx.cleaningDate >= due;
-    }
-
-    if (cadence === "as_needed") {
-      const scheduled = ctx.upcomingTaskDates[task.id];
-      if (typeof scheduled === "string" && scheduled === ctx.calendarToday) {
-        return true;
-      }
-      return asNeededToday.has(task.id);
     }
 
     return false;
