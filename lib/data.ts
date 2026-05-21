@@ -327,7 +327,7 @@ export const tasks: Task[] = [
   // ─── Bathroom: Daily ───
   {
     id: "bathroom-daily-1",
-    title: "Wipe sink and mirror",
+    title: "Bathroom sink wipe",
     zoneId: "bathroom",
     block: "morning",
     cadence: "daily",

@@ -43,18 +43,6 @@ export default function ZonesPage() {
   const asNeededOnTodayIds = asNeededForCalendarTodayIds;
 
   const weeklyAnchorZoneId = "kitchen";
-  const allWeeklyTasks = sortTasks(
-    routineTasks.filter((task) => task.cadence === "weekly"),
-  );
-  const weeklyTaskZoneIds = new Set(
-    allWeeklyTasks.map((task) => task.zoneId).filter(Boolean),
-  );
-  const weeklyTasksViewable = selectedZoneIds.some((id) =>
-    weeklyTaskZoneIds.has(id),
-  );
-  const showKitchenWeeklyBlock =
-    zones.some((candidate) => candidate.id === weeklyAnchorZoneId) &&
-    allWeeklyTasks.length > 0;
   const lastWeeklyPick = readCadenceSchedulePick(
     settings.lastZoneScheduleByCadence,
     weeklyAnchorZoneId,
@@ -125,6 +113,9 @@ export default function ZonesPage() {
             (t) => t.cadence === "seasonal",
           );
           const adHocTasks = zoneTasks.filter((t) => t.cadence === "as_needed");
+          const weeklyTasks = sortTasks(
+            zoneTasks.filter((t) => t.cadence === "weekly"),
+          );
           const dailyMinutes = dailyTasks.reduce(
             (s, t) => s + t.estimatedMinutes,
             0,
@@ -208,7 +199,7 @@ export default function ZonesPage() {
                       completedTaskIds={completedTaskIds}
                     />
                     ) : null}
-                    {zone.id === weeklyAnchorZoneId && showKitchenWeeklyBlock ? (
+                    {weeklyTasks.length > 0 ? (
                       <CadenceRow
                         label="Weekly care"
                         status={
@@ -216,13 +207,13 @@ export default function ZonesPage() {
                             ? scheduledOnBlurb(lastWeeklyPick)
                             : "Due this week"
                         }
-                        tasks={allWeeklyTasks}
+                        tasks={weeklyTasks}
                         isExpanded={
-                          expandedCadence?.zoneId === weeklyAnchorZoneId &&
+                          expandedCadence?.zoneId === zone.id &&
                           expandedCadence?.cadence === "weekly"
                         }
-                        showViewTasks={weeklyTasksViewable}
-                        onToggle={() => toggleCadence(weeklyAnchorZoneId, "weekly")}
+                        showViewTasks={isSelected}
+                        onToggle={() => toggleCadence(zone.id, "weekly")}
                         completedTaskIds={completedTaskIds}
                         onSchedule={() =>
                           openScheduleDialog(weeklyAnchorZoneId, "weekly")
