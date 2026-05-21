@@ -72,7 +72,12 @@ export default function ZonesPage() {
   function openScheduleDialog(zoneId: string, cadence: ZoneScheduleCadenceContext) {
     setScheduleTargetZoneId(zoneId);
     setScheduleTargetCadence(cadence);
-    setScheduleDateValue(getCleaningDate(settings.resetTime));
+    const savedPick = readCadenceSchedulePick(
+      settings.lastZoneScheduleByCadence,
+      zoneId,
+      cadence,
+    );
+    setScheduleDateValue(savedPick ?? getCleaningDate(settings.resetTime));
   }
 
   function startEdit(zone: Zone) {
