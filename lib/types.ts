@@ -55,7 +55,7 @@ export type DailyLog = {
   blockCompletion: BlockCompletion;
   dailyCompletion?: number;
   updatedAt: string;
-  /** as_needed tasks the user pulled into Today for this cleaning day */
+  /** Legacy: as_needed tasks pulled into Today via the old daily-log list (migrated to settings.upcomingTaskDates). */
   asNeededOnTodayTaskIds?: string[];
 };
 
@@ -70,7 +70,7 @@ export type Settings = {
    * -> last YYYY-MM-DD chosen in that schedule dialog for UI blurbs.
    */
   lastZoneScheduleByCadence?: Record<string, string>;
-  /** taskId -> next YYYY-MM-DD when monthly/seasonal work surfaces on Today */
+  /** taskId -> YYYY-MM-DD: next due for monthly/seasonal, calendar pick for weekly, or calendar day for as_needed on Today */
   upcomingTaskDates: Record<string, string>;
   firstRunComplete: boolean;
   lastAutoZoneDate?: string;

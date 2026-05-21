@@ -34,6 +34,7 @@ export default function ManagePage() {
     deleteTask,
     updateTask,
     addAsNeededToToday,
+    asNeededForCalendarTodayIds,
   } = useCleaningApp();
 
   const [expandedZoneId, setExpandedZoneId] = useState<string | null>(null);
@@ -377,7 +378,7 @@ export default function ManagePage() {
                       onSaveEdit={handleTaskEditSubmit}
                       onDelete={deleteTask}
                       onAddTaskToToday={addAsNeededToToday}
-                      taskIdsOnToday={new Set(dailyLog?.asNeededOnTodayTaskIds ?? [])}
+                      taskIdsOnToday={asNeededForCalendarTodayIds}
                     />
                   ) : null}
 

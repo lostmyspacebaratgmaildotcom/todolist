@@ -35,10 +35,11 @@ export default function ZonesPage() {
     settings,
     scheduleZoneForDate,
     addAsNeededToToday,
+    asNeededForCalendarTodayIds,
   } = useCleaningApp();
 
   const completedTaskIds = new Set(dailyLog?.completedTaskIds ?? []);
-  const asNeededOnTodayIds = new Set(dailyLog?.asNeededOnTodayTaskIds ?? []);
+  const asNeededOnTodayIds = asNeededForCalendarTodayIds;
 
   const weeklyAnchorZoneId = "kitchen";
   const allWeeklyTasks = sortTasks(
