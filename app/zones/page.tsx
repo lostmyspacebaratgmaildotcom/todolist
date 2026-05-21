@@ -35,6 +35,7 @@ export default function ZonesPage() {
     settings,
     scheduleZoneForDate,
     addAsNeededToToday,
+    removeAsNeededFromToday,
     asNeededForCalendarTodayIds,
   } = useCleaningApp();
 
@@ -290,6 +291,7 @@ export default function ZonesPage() {
                         onToggle={() => toggleCadence(zone.id, "as_needed")}
                         completedTaskIds={completedTaskIds}
                         onAddAsNeededToToday={addAsNeededToToday}
+                        onRemoveAsNeededFromToday={removeAsNeededFromToday}
                         asNeededOnTodayIds={asNeededOnTodayIds}
                       />
                     ) : null}
@@ -475,6 +477,7 @@ function CadenceRow({
   onToggle,
   completedTaskIds,
   onAddAsNeededToToday,
+  onRemoveAsNeededFromToday,
   asNeededOnTodayIds,
   onSchedule,
   scheduleAriaLabel,
@@ -487,6 +490,7 @@ function CadenceRow({
   onToggle: () => void;
   completedTaskIds: Set<string>;
   onAddAsNeededToToday?: (taskId: string) => void;
+  onRemoveAsNeededFromToday?: (taskId: string) => void;
   asNeededOnTodayIds?: Set<string>;
   onSchedule?: () => void;
   scheduleAriaLabel?: string;
@@ -565,16 +569,19 @@ function CadenceRow({
                   <div className="flex h-7 items-center justify-center justify-self-center">
                     <button
                       type="button"
-                      disabled={onToday}
-                      onClick={() => onAddAsNeededToToday(task.id)}
+                      onClick={() =>
+                        onToday
+                          ? onRemoveAsNeededFromToday?.(task.id)
+                          : onAddAsNeededToToday(task.id)
+                      }
                       aria-label={
                         onToday
-                          ? `${task.title} is on today`
+                          ? `Remove ${task.title} from today`
                           : `Add ${task.title} to today`
                       }
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 transition ${
                         onToday
-                          ? "cursor-default bg-emerald-100 text-emerald-700 ring-emerald-200"
+                          ? "bg-emerald-100 text-emerald-700 ring-emerald-200 hover:bg-emerald-200"
                           : "bg-white text-emerald-800 ring-emerald-200 hover:bg-emerald-50"
                       }`}
                     >

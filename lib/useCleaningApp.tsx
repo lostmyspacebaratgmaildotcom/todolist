@@ -936,6 +936,68 @@ function useCleaningAppState() {
     [routineData.tasks, routineData.zones],
   );
 
+  const removeAsNeededFromToday = useCallback(
+    (taskId: string) => {
+      const calendarToday = getLocalCalendarDate();
+
+      setAsNeededLocalPins((prev) => {
+        if (!prev.has(taskId)) {
+          return prev;
+        }
+
+        const next = new Set(prev);
+        next.delete(taskId);
+
+        return next;
+      });
+
+      setSettings((currentSettings) => {
+        const upcoming = { ...(currentSettings.upcomingTaskDates ?? {}) };
+
+        if (upcoming[taskId] !== calendarToday) {
+          return currentSettings;
+        }
+
+        delete upcoming[taskId];
+
+        const nextSettings = normalizeSettings(
+          {
+            ...currentSettings,
+            upcomingTaskDates: upcoming,
+          },
+          routineData.zones,
+        );
+
+        saveSettings(nextSettings);
+
+        return nextSettings;
+      });
+
+      setDailyLog((currentLog) => {
+        if (!currentLog) {
+          return currentLog;
+        }
+
+        const ids = currentLog.asNeededOnTodayTaskIds ?? [];
+
+        if (!ids.includes(taskId)) {
+          return currentLog;
+        }
+
+        const nextLog: DailyLog = {
+          ...currentLog,
+          asNeededOnTodayTaskIds: ids.filter((id) => id !== taskId),
+          updatedAt: new Date().toISOString(),
+        };
+
+        saveDailyLog(nextLog);
+
+        return nextLog;
+      });
+    },
+    [routineData.zones],
+  );
+
   const updateUpcomingTaskDate = useCallback(
     (taskId: string, isoDate: string) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
@@ -1096,6 +1158,7 @@ function useCleaningAppState() {
     startTemplate,
     setTaskCompleted,
     addAsNeededToToday,
+    removeAsNeededFromToday,
     updateUpcomingTaskDate,
     resetToday,
     addZone,

@@ -34,6 +34,7 @@ export default function ManagePage() {
     deleteTask,
     updateTask,
     addAsNeededToToday,
+    removeAsNeededFromToday,
     asNeededForCalendarTodayIds,
   } = useCleaningApp();
 
@@ -378,6 +379,7 @@ export default function ManagePage() {
                       onSaveEdit={handleTaskEditSubmit}
                       onDelete={deleteTask}
                       onAddTaskToToday={addAsNeededToToday}
+                      onRemoveTaskFromToday={removeAsNeededFromToday}
                       taskIdsOnToday={asNeededForCalendarTodayIds}
                     />
                   ) : null}
@@ -564,6 +566,7 @@ function CadenceSection({
   onSaveEdit,
   onDelete,
   onAddTaskToToday,
+  onRemoveTaskFromToday,
   taskIdsOnToday,
 }: {
   label: string;
@@ -583,6 +586,7 @@ function CadenceSection({
   onSaveEdit: (e: FormEvent<HTMLFormElement>) => void;
   onDelete: (taskId: string) => void;
   onAddTaskToToday?: (taskId: string) => void;
+  onRemoveTaskFromToday?: (taskId: string) => void;
   taskIdsOnToday?: Set<string>;
 }) {
   return (
@@ -673,16 +677,19 @@ function CadenceSection({
                     {onAddTaskToToday ? (
                       <button
                         type="button"
-                        disabled={Boolean(taskIdsOnToday?.has(task.id))}
-                        onClick={() => onAddTaskToToday(task.id)}
+                        onClick={() =>
+                          taskIdsOnToday?.has(task.id)
+                            ? onRemoveTaskFromToday?.(task.id)
+                            : onAddTaskToToday(task.id)
+                        }
                         aria-label={
                           taskIdsOnToday?.has(task.id)
-                            ? `${task.title} is on today`
+                            ? `Remove ${task.title} from today`
                             : `Add ${task.title} to today`
                         }
                         className={`flex h-8 w-8 items-center justify-center rounded-lg ring-1 transition ${
                           taskIdsOnToday?.has(task.id)
-                            ? "cursor-default bg-emerald-50 text-emerald-700 ring-emerald-100"
+                            ? "bg-emerald-50 text-emerald-700 ring-emerald-100 hover:bg-emerald-100"
                             : "bg-white text-emerald-800 ring-emerald-200 hover:bg-emerald-50"
                         }`}
                       >
