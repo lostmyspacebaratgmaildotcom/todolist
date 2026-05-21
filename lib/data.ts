@@ -67,6 +67,12 @@ export const zones: Zone[] = [
 ];
 
 export const tasks: Task[] = [
+  // Kitchen — Manage layout:
+  // "Today in this zone" = spotlightToday tasks (sink, counter, take out waste).
+  // "Daily reset" = daily tasks without dailyPreviewOnly (sink, counter, floor,
+  //   dishwasher, check waste). Take-out waste is dailyPreviewOnly → Today only.
+  // Weekly / monthly / seasonal / as_needed match the section labels on Manage.
+
   // ─── Kitchen: Daily ───
   {
     id: "kitchen-daily-1",
