@@ -28,9 +28,11 @@ export default function ZonesPage() {
     scheduleZoneForDate,
     deleteZone,
     updateZone,
+    addAsNeededToToday,
   } = useCleaningApp();
 
   const completedTaskIds = new Set(dailyLog?.completedTaskIds ?? []);
+  const asNeededOnTodayIds = new Set(dailyLog?.asNeededOnTodayTaskIds ?? []);
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [expandedCadence, setExpandedCadence] = useState<{
@@ -338,6 +340,8 @@ export default function ZonesPage() {
                         showViewTasks={isSelected}
                         onToggle={() => toggleCadence(zone.id, "as_needed")}
                         completedTaskIds={completedTaskIds}
+                        onAddAsNeededToToday={addAsNeededToToday}
+                        asNeededOnTodayIds={asNeededOnTodayIds}
                       />
                     ) : null}
                   </div>
@@ -468,6 +472,8 @@ function CadenceRow({
   showViewTasks,
   onToggle,
   completedTaskIds,
+  onAddAsNeededToToday,
+  asNeededOnTodayIds,
 }: {
   label: string;
   status: string;
@@ -476,6 +482,8 @@ function CadenceRow({
   showViewTasks: boolean;
   onToggle: () => void;
   completedTaskIds: Set<string>;
+  onAddAsNeededToToday?: (taskId: string) => void;
+  asNeededOnTodayIds?: Set<string>;
 }) {
   return (
     <div className="rounded-2xl bg-stone-50 px-3 py-2.5">
@@ -514,19 +522,63 @@ function CadenceRow({
         <ul className="mt-2 space-y-1.5">
           {tasks.map((task) => {
             const isDone = completedTaskIds.has(task.id);
+            const onToday = Boolean(asNeededOnTodayIds?.has(task.id));
             return (
               <li
                 key={task.id}
-                className={`flex items-center justify-between rounded-xl px-2.5 py-1.5 ${isDone ? "bg-emerald-100" : "bg-white"}`}
+                className={`flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 ${isDone ? "bg-emerald-100" : "bg-white"}`}
               >
                 <span
-                  className={`text-sm font-semibold ${isDone ? "text-emerald-700 line-through" : "text-stone-700"}`}
+                  className={`min-w-0 flex-1 text-sm font-semibold ${isDone ? "text-emerald-700 line-through" : "text-stone-700"}`}
                 >
                   {task.title}
                 </span>
-                <span className="text-xs font-semibold text-stone-400">
-                  {task.estimatedMinutes} min
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  {onAddAsNeededToToday ? (
+                    <button
+                      type="button"
+                      disabled={onToday}
+                      onClick={() => onAddAsNeededToToday(task.id)}
+                      aria-label={
+                        onToday
+                          ? `${task.title} is on today`
+                          : `Add ${task.title} to today`
+                      }
+                      className={`flex h-7 w-7 items-center justify-center rounded-lg ring-1 transition ${
+                        onToday
+                          ? "cursor-default bg-emerald-100 text-emerald-700 ring-emerald-200"
+                          : "bg-white text-emerald-800 ring-emerald-200 hover:bg-emerald-50"
+                      }`}
+                    >
+                      {onToday ? (
+                        <svg
+                          aria-hidden="true"
+                          className="h-3 w-3"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2.5"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                      ) : (
+                        <svg
+                          aria-hidden="true"
+                          className="h-3 w-3"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M8 6v12l9-6z" />
+                        </svg>
+                      )}
+                    </button>
+                  ) : null}
+                  <span className="text-xs font-semibold text-stone-400">
+                    {task.estimatedMinutes} min
+                  </span>
+                </div>
               </li>
             );
           })}

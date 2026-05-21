@@ -27,11 +27,13 @@ export default function ManagePage() {
     zones,
     routineBlocks,
     routineTasks,
+    dailyLog,
     addZone,
     deleteZone,
     addTask,
     deleteTask,
     updateTask,
+    addAsNeededToToday,
   } = useCleaningApp();
 
   const [expandedZoneId, setExpandedZoneId] = useState<string | null>(null);
@@ -377,6 +379,8 @@ export default function ManagePage() {
                       onCancelEdit={cancelTaskEdit}
                       onSaveEdit={handleTaskEditSubmit}
                       onDelete={deleteTask}
+                      onAddTaskToToday={addAsNeededToToday}
+                      taskIdsOnToday={new Set(dailyLog?.asNeededOnTodayTaskIds ?? [])}
                     />
                   ) : null}
 
@@ -561,6 +565,8 @@ function CadenceSection({
   onCancelEdit,
   onSaveEdit,
   onDelete,
+  onAddTaskToToday,
+  taskIdsOnToday,
 }: {
   label: string;
   tasks: Task[];
@@ -578,6 +584,8 @@ function CadenceSection({
   onCancelEdit: () => void;
   onSaveEdit: (e: FormEvent<HTMLFormElement>) => void;
   onDelete: (taskId: string) => void;
+  onAddTaskToToday?: (taskId: string) => void;
+  taskIdsOnToday?: Set<string>;
 }) {
   return (
     <div>
@@ -664,6 +672,47 @@ function CadenceSection({
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1.5">
+                    {onAddTaskToToday ? (
+                      <button
+                        type="button"
+                        disabled={Boolean(taskIdsOnToday?.has(task.id))}
+                        onClick={() => onAddTaskToToday(task.id)}
+                        aria-label={
+                          taskIdsOnToday?.has(task.id)
+                            ? `${task.title} is on today`
+                            : `Add ${task.title} to today`
+                        }
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg ring-1 transition ${
+                          taskIdsOnToday?.has(task.id)
+                            ? "cursor-default bg-emerald-50 text-emerald-700 ring-emerald-100"
+                            : "bg-white text-emerald-800 ring-emerald-200 hover:bg-emerald-50"
+                        }`}
+                      >
+                        {taskIdsOnToday?.has(task.id) ? (
+                          <svg
+                            aria-hidden="true"
+                            className="h-3.5 w-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2.5"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M20 6 9 17l-5-5" />
+                          </svg>
+                        ) : (
+                          <svg
+                            aria-hidden="true"
+                            className="h-3.5 w-3.5"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M9 6.5v11l9-5.5z" />
+                          </svg>
+                        )}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => onStartEdit(task)}

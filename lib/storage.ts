@@ -34,6 +34,7 @@ export const defaultSettings: Settings = {
   currentZoneIds: [defaultZoneId],
   currentZoneId: defaultZoneId,
   scheduledZoneDates: {},
+  upcomingTaskDates: {},
   firstRunComplete: false,
 };
 
@@ -61,11 +62,18 @@ export function loadSettings(): Settings {
         ? normalizeScheduledZoneDates(parsedSettings.scheduledZoneDates)
         : defaultSettings.scheduledZoneDates;
 
+    const upcomingTaskDates =
+      parsedSettings.upcomingTaskDates &&
+      typeof parsedSettings.upcomingTaskDates === "object"
+        ? (parsedSettings.upcomingTaskDates as Record<string, string>)
+        : defaultSettings.upcomingTaskDates;
+
     return {
       ...defaultSettings,
       ...parsedSettings,
       currentZoneIds,
       scheduledZoneDates,
+      upcomingTaskDates,
     };
   } catch {
     return defaultSettings;
@@ -150,11 +158,15 @@ export function getTodayLog(tasks: Task[], settings: Settings): DailyLog {
     const validCompletedTaskIds = existingLog.completedTaskIds.filter((taskId) =>
       tasks.some((task) => task.id === taskId),
     );
+    const validAsNeeded = (existingLog.asNeededOnTodayTaskIds ?? []).filter((taskId) =>
+      tasks.some((task) => task.id === taskId),
+    );
     const blockCompletion = calculateCompletions(tasks, validCompletedTaskIds);
 
     return {
       ...existingLog,
       completedTaskIds: validCompletedTaskIds,
+      asNeededOnTodayTaskIds: validAsNeeded,
       blockCompletion,
       dailyCompletion: calculateDailyCompletion(blockCompletion),
     };
@@ -165,6 +177,7 @@ export function getTodayLog(tasks: Task[], settings: Settings): DailyLog {
   return {
     date,
     completedTaskIds: [],
+    asNeededOnTodayTaskIds: [],
     blockCompletion,
     dailyCompletion: calculateDailyCompletion(blockCompletion),
     updatedAt: new Date().toISOString(),

@@ -42,7 +42,7 @@ export default function TodayPage() {
         title="Your apartment reset"
         description={
           dailyLog
-            ? `${formatDisplayDate(dailyLog.date)}. Progress stays private on this browser.`
+            ? `${formatDisplayDate(dailyLog.date)}. Dailies, monthly and seasonal items when due, and as-needed tasks you add from Zones or Manage. Progress stays on this browser.`
             : "Loading your local checklist."
         }
       />

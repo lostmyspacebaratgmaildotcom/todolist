@@ -7,7 +7,7 @@ const navItems = [
   { href: "/today", label: "Today", icon: "check" },
   { href: "/zones", label: "Zones", icon: "home" },
   { href: "/manage", label: "Manage", icon: "edit" },
-  { href: "/templates", label: "Templates", icon: "list" },
+  { href: "/upcoming", label: "Upcoming", icon: "calendar" },
   { href: "/settings", label: "Settings", icon: "gear" },
 ];
 
@@ -67,15 +67,11 @@ function NavIcon({ icon }: { icon: string }) {
     );
   }
 
-  if (icon === "list") {
+  if (icon === "calendar") {
     return (
       <svg {...commonProps}>
-        <path d="M8 6h12" />
-        <path d="M8 12h12" />
-        <path d="M8 18h12" />
-        <path d="M4 6h.01" />
-        <path d="M4 12h.01" />
-        <path d="M4 18h.01" />
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M16 3v4M8 3v4M3 11h18" />
       </svg>
     );
   }

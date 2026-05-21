@@ -71,6 +71,12 @@ export default function SettingsPage() {
           >
             Manage zones and tasks
           </Link>
+          <Link
+            href="/templates"
+            className="mt-2 flex min-h-12 items-center justify-center rounded-2xl bg-stone-100 px-4 text-sm font-black text-stone-800 ring-1 ring-stone-200 transition hover:bg-stone-200"
+          >
+            Browse routine templates
+          </Link>
         </section>
 
         <section className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">

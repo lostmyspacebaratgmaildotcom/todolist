@@ -55,6 +55,8 @@ export type DailyLog = {
   blockCompletion: BlockCompletion;
   dailyCompletion?: number;
   updatedAt: string;
+  /** as_needed tasks the user pulled into Today for this cleaning day */
+  asNeededOnTodayTaskIds?: string[];
 };
 
 export type Settings = {
@@ -63,6 +65,8 @@ export type Settings = {
   currentZoneIds: string[];
   currentZoneId: string;
   scheduledZoneDates: Record<string, string[]>;
+  /** taskId -> next YYYY-MM-DD when monthly/seasonal work surfaces on Today */
+  upcomingTaskDates: Record<string, string>;
   firstRunComplete: boolean;
   lastAutoZoneDate?: string;
 };

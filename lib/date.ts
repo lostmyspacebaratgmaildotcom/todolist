@@ -36,3 +36,24 @@ function parseResetTime(resetTime: string): [number, number] {
   return [Number(hour), Number(minute)];
 }
 
+/** First calendar day of the month after the month containing `ymd`. */
+export function firstDayOfNextCalendarMonthFrom(ymd: string): string {
+  const [year, month] = ymd.split("-").map(Number);
+  const next = new Date(year, month - 1 + 1, 1);
+
+  return formatLocalDate(next);
+}
+
+/** First calendar day of the quarter after the quarter containing `ymd`. */
+export function firstDayOfNextQuarterFrom(ymd: string): string {
+  const [year, month] = ymd.split("-").map(Number);
+  const monthIndex = month - 1;
+  const quarter = Math.floor(monthIndex / 3);
+
+  if (quarter < 3) {
+    return formatLocalDate(new Date(year, (quarter + 1) * 3, 1));
+  }
+
+  return formatLocalDate(new Date(year + 1, 0, 1));
+}
+
