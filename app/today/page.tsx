@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { ProgressPill } from "@/components/ProgressPill";
 import { RoutineBlockCard } from "@/components/RoutineBlockCard";
 import { ZoneTimer } from "@/components/ZoneTimer";
-import { formatDisplayDate } from "@/lib/date";
+import { formatDisplayDate, getCleaningDate } from "@/lib/date";
 import { getCurrentBlockId, getTasksForBlock } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
@@ -42,7 +42,7 @@ export default function TodayPage() {
         title="Your apartment reset"
         description={
           dailyLog
-            ? `${formatDisplayDate(dailyLog.date)}. Progress stays private on this browser.`
+            ? `${formatDisplayDate(getCleaningDate(settings.resetTime))} (routine day). Progress stays private on this browser.`
             : "Loading your local checklist."
         }
       />

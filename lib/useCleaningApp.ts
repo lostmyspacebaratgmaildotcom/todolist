@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   defaultZoneId,
   routineBlocks,
@@ -83,7 +83,7 @@ export function useCleaningApp() {
     setIsReady(true);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isReady) {
       return;
     }
