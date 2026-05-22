@@ -26,7 +26,7 @@ const routineDataKey = "apartment-reset:routine-data";
 const logPrefix = "cleaningLog:";
 
 /** Bump when canonical routine rows (e.g. Kitchen, Bathroom, Bedroom, Vanity counter, Laundry, Entrance/entry) change so localStorage upgrades. */
-export const ROUTINE_SCHEMA_VERSION = 9;
+export const ROUTINE_SCHEMA_VERSION = 10;
 
 export const defaultSettings: Settings = {
   selectedTemplateId: defaultTemplateId,

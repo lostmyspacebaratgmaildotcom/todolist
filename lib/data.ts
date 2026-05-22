@@ -1292,6 +1292,17 @@ export const tasks: Task[] = [
     active: true,
   },
   {
+    id: "laundry-weekly-6",
+    title: "Wash and sort laundry",
+    zoneId: "laundry",
+    block: "afternoon",
+    cadence: "weekly",
+    estimatedMinutes: 10,
+    required: true,
+    sortOrder: 3,
+    active: true,
+  },
+  {
     id: "laundry-weekly-3",
     title: "Empty lint filter",
     zoneId: "laundry",
@@ -1299,7 +1310,7 @@ export const tasks: Task[] = [
     cadence: "weekly",
     estimatedMinutes: 2,
     required: true,
-    sortOrder: 3,
+    sortOrder: 4,
     active: true,
   },
   {
@@ -1310,7 +1321,7 @@ export const tasks: Task[] = [
     cadence: "weekly",
     estimatedMinutes: 5,
     required: true,
-    sortOrder: 4,
+    sortOrder: 5,
     active: true,
   },
   {
@@ -1321,7 +1332,7 @@ export const tasks: Task[] = [
     cadence: "weekly",
     estimatedMinutes: 10,
     required: true,
-    sortOrder: 5,
+    sortOrder: 6,
     active: true,
   },
   // ─── Laundry: Monthly ───
