@@ -39,10 +39,21 @@ function readWeeklySchedulePick(
   return readCadenceSchedulePick(map, "kitchen", "weekly");
 }
 
+/** Picks tied to a calendar day should disappear from pills once that day has passed. */
+function isSchedulePillDateActive(
+  iso: string | null,
+  calendarToday: string,
+): iso is string {
+  return (
+    typeof iso === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(iso) &&
+    iso >= calendarToday
+  );
+}
+
 export default function ZonesPage() {
   const {
     zones,
-    selectedZoneIds,
     routineTasks,
     dailyLog,
     settings,
@@ -66,6 +77,8 @@ export default function ZonesPage() {
   const [scheduleTargetCadence, setScheduleTargetCadence] =
     useState<ZoneScheduleCadenceContext | null>(null);
   const [scheduleDateValue, setScheduleDateValue] = useState("");
+
+  const calendarToday = getLocalCalendarDate();
 
   function openScheduleDialog(zoneId: string, cadence: ZoneScheduleCadenceContext) {
     setScheduleTargetZoneId(zoneId);
@@ -110,7 +123,6 @@ export default function ZonesPage() {
 
       <div className="space-y-4">
         {zones.map((zone) => {
-          const isSelected = selectedZoneIds.includes(zone.id);
           const zoneTasks = routineTasks.filter(
             (task) => task.zoneId === zone.id,
           );
@@ -161,8 +173,13 @@ export default function ZonesPage() {
           const lastZonePick = readCadenceSchedulePick(byCadence, zone.id, "zone");
           const lastWeeklyPick = readWeeklySchedulePick(byCadence, zone.id);
 
+          const activeZonePick = isSchedulePillDateActive(lastZonePick, calendarToday)
+            ? lastZonePick
+            : null;
           const zoneScheduledSummaryIso = showScheduledZoneState
-            ? lastZonePick ?? nextFutureSchedule ?? cleaningDate
+            ? activeZonePick ??
+              nextFutureSchedule ??
+              (scheduledForTodayNotStarted ? cleaningDate : null)
             : null;
           const earliestMonthlyDue = getEarliestQueuedDueDate(
             monthlyTasks,
@@ -216,7 +233,7 @@ export default function ZonesPage() {
                         label="Weekly care"
                         routineBlocks={routineBlocks}
                         status={
-                          lastWeeklyPick
+                          isSchedulePillDateActive(lastWeeklyPick, calendarToday)
                             ? scheduledOnBlurb(lastWeeklyPick)
                             : "Due this week"
                         }
@@ -225,7 +242,7 @@ export default function ZonesPage() {
                           expandedCadence?.zoneId === zone.id &&
                           expandedCadence?.cadence === "weekly"
                         }
-                        showViewTasks={isSelected}
+                        showViewTasks={true}
                         onToggle={() => toggleCadence(zone.id, "weekly")}
                         completedTaskIds={completedTaskIds}
                         onSchedule={() => openScheduleDialog(zone.id, "weekly")}
@@ -239,9 +256,13 @@ export default function ZonesPage() {
                             label="Monthly care"
                             routineBlocks={routineBlocks}
                             status={
-                              lastMonthlyPick
+                              isSchedulePillDateActive(lastMonthlyPick, calendarToday)
                                 ? scheduledOnBlurb(lastMonthlyPick)
-                                : monthlyUpcomingScheduled && earliestMonthlyDue
+                                : monthlyUpcomingScheduled &&
+                                    isSchedulePillDateActive(
+                                      earliestMonthlyDue,
+                                      calendarToday,
+                                    )
                                   ? scheduledOnBlurb(earliestMonthlyDue)
                                   : "Due this month"
                             }
@@ -250,7 +271,7 @@ export default function ZonesPage() {
                               expandedCadence?.zoneId === zone.id &&
                               expandedCadence?.cadence === "monthly"
                             }
-                            showViewTasks={isSelected}
+                            showViewTasks={true}
                             onToggle={() => toggleCadence(zone.id, "monthly")}
                             completedTaskIds={completedTaskIds}
                             onSchedule={() => openScheduleDialog(zone.id, "monthly")}
@@ -262,9 +283,13 @@ export default function ZonesPage() {
                             label="Seasonal projects"
                             routineBlocks={routineBlocks}
                             status={
-                              lastSeasonalPick
+                              isSchedulePillDateActive(lastSeasonalPick, calendarToday)
                                 ? scheduledOnBlurb(lastSeasonalPick)
-                                : seasonalUpcomingScheduled && earliestSeasonalDue
+                                : seasonalUpcomingScheduled &&
+                                    isSchedulePillDateActive(
+                                      earliestSeasonalDue,
+                                      calendarToday,
+                                    )
                                   ? scheduledOnBlurb(earliestSeasonalDue)
                                   : "Due this quarter"
                             }
@@ -273,7 +298,7 @@ export default function ZonesPage() {
                               expandedCadence?.zoneId === zone.id &&
                               expandedCadence?.cadence === "seasonal"
                             }
-                            showViewTasks={isSelected}
+                            showViewTasks={true}
                             onToggle={() => toggleCadence(zone.id, "seasonal")}
                             completedTaskIds={completedTaskIds}
                             onSchedule={() => openScheduleDialog(zone.id, "seasonal")}
@@ -292,7 +317,7 @@ export default function ZonesPage() {
                           expandedCadence?.zoneId === zone.id &&
                           expandedCadence?.cadence === "as_needed"
                         }
-                        showViewTasks={isSelected}
+                        showViewTasks={true}
                         onToggle={() => toggleCadence(zone.id, "as_needed")}
                         completedTaskIds={completedTaskIds}
                         onAddAsNeededToToday={addAsNeededToToday}
