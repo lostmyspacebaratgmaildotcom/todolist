@@ -64,6 +64,15 @@ export const zones: Zone[] = [
     active: true,
     suggestedTasks: [],
   },
+  {
+    id: "vanity",
+    name: "Vanity counter",
+    description: "Product bottles, drawers, brushes, and small tools you use every day.",
+    frequency: "daily",
+    sortOrder: 6,
+    active: true,
+    suggestedTasks: [],
+  },
 ];
 
 export const tasks: Task[] = [
@@ -1117,6 +1126,135 @@ export const tasks: Task[] = [
     active: true,
   },
 
+  // Vanity counter — Manage layout:
+  // Same section labels as Kitchen on Manage. No daily, weekly, or seasonal
+  //   seed rows; monthly tasks are required and as_needed tasks are optional,
+  //   matching Kitchen cadence conventions.
+
+  // ─── Vanity counter: Monthly ───
+  {
+    id: "vanity-monthly-1",
+    title: "Wipe product bottles",
+    zoneId: "vanity",
+    block: "afternoon",
+    cadence: "monthly",
+    estimatedMinutes: 10,
+    required: true,
+    sortOrder: 1,
+    active: true,
+  },
+  {
+    id: "vanity-monthly-2",
+    title: "Wipe inside drawers",
+    zoneId: "vanity",
+    block: "afternoon",
+    cadence: "monthly",
+    estimatedMinutes: 10,
+    required: true,
+    sortOrder: 2,
+    active: true,
+  },
+  {
+    id: "vanity-monthly-3",
+    title: "Clean makeup brushes",
+    zoneId: "vanity",
+    block: "afternoon",
+    cadence: "monthly",
+    estimatedMinutes: 15,
+    required: true,
+    sortOrder: 3,
+    active: true,
+  },
+  {
+    id: "vanity-monthly-4",
+    title: "Clean mirror",
+    zoneId: "vanity",
+    block: "afternoon",
+    cadence: "monthly",
+    estimatedMinutes: 5,
+    required: true,
+    sortOrder: 4,
+    active: true,
+  },
+  // ─── Vanity counter: As needed ───
+  {
+    id: "vanity-asneeded-1",
+    title: "Replace empty product",
+    zoneId: "vanity",
+    block: "afternoon",
+    cadence: "as_needed",
+    estimatedMinutes: 3,
+    required: false,
+    sortOrder: 1,
+    active: true,
+  },
+  {
+    id: "vanity-asneeded-2",
+    title: "Wash makeup sponge",
+    zoneId: "vanity",
+    block: "afternoon",
+    cadence: "as_needed",
+    estimatedMinutes: 10,
+    required: false,
+    sortOrder: 2,
+    active: true,
+  },
+  {
+    id: "vanity-asneeded-3",
+    title: "Untangle hair tools",
+    zoneId: "vanity",
+    block: "afternoon",
+    cadence: "as_needed",
+    estimatedMinutes: 10,
+    required: false,
+    sortOrder: 3,
+    active: true,
+  },
+  {
+    id: "vanity-asneeded-4",
+    title: "Remove broken accessories",
+    zoneId: "vanity",
+    block: "afternoon",
+    cadence: "as_needed",
+    estimatedMinutes: 5,
+    required: false,
+    sortOrder: 4,
+    active: true,
+  },
+  {
+    id: "vanity-asneeded-5",
+    title: "Sanitize tweezers or small tools",
+    zoneId: "vanity",
+    block: "evening",
+    cadence: "as_needed",
+    estimatedMinutes: 5,
+    required: false,
+    sortOrder: 5,
+    active: true,
+  },
+  {
+    id: "vanity-asneeded-6",
+    title: "Clean jewellery tray",
+    zoneId: "vanity",
+    block: "evening",
+    cadence: "as_needed",
+    estimatedMinutes: 10,
+    required: false,
+    sortOrder: 6,
+    active: true,
+  },
+  {
+    id: "vanity-asneeded-7",
+    title: "Empty vanity bin",
+    zoneId: "vanity",
+    block: "evening",
+    cadence: "as_needed",
+    estimatedMinutes: 3,
+    required: false,
+    sortOrder: 7,
+    active: true,
+  },
+
 ];
 
 export const templates: RoutineTemplate[] = [
@@ -1134,7 +1272,13 @@ export const templates: RoutineTemplate[] = [
     description: "A compact routine for one-room living where surfaces and sink resets matter most.",
     apartmentType: "studio",
     taskIds: tasks
-      .filter((t) => t.zoneId === "kitchen" || t.zoneId === "bathroom" || t.zoneId === "living")
+      .filter(
+        (t) =>
+          t.zoneId === "kitchen" ||
+          t.zoneId === "bathroom" ||
+          t.zoneId === "living" ||
+          t.zoneId === "vanity",
+      )
       .map((t) => t.id),
     highlights: ["Small-space flow", "Visible surfaces", "Kitchen reset"],
   },
