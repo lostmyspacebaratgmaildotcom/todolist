@@ -424,10 +424,10 @@ function scheduledOnBlurb(isoDate: string): string {
   const formatted = formatDdMmYy(isoDate);
 
   if (!formatted) {
-    return "SCHEDULED ON";
+    return "Scheduled on";
   }
 
-  return `SCHEDULED ON ${formatted}`;
+  return `Scheduled on ${formatted}`;
 }
 
 function getEarliestQueuedDueDate(
@@ -667,7 +667,7 @@ function CadenceRow({
 }
 
 function cadenceStatusStyle(status: string): string {
-  if (status.startsWith("SCHEDULED ON")) {
+  if (status.startsWith("Scheduled on")) {
     return "bg-violet-100 text-violet-900";
   }
 
