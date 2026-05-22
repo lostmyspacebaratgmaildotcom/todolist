@@ -6,13 +6,13 @@ import { PageHeader } from "@/components/PageHeader";
 import { ProgressPill } from "@/components/ProgressPill";
 import { RoutineBlockCard } from "@/components/RoutineBlockCard";
 import { ZoneTimer } from "@/components/ZoneTimer";
-import { formatDisplayDate } from "@/lib/date";
+import { formatDisplayDate, getCleaningDate } from "@/lib/date";
 import {
   getCurrentBlockId,
   getTasksForBlock,
   getZoneDailyResetTasks,
 } from "@/lib/progress";
-import type { RoutineBlockId } from "@/lib/types";
+import type { RoutineBlockId, Zone } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 export default function TodayPage() {
@@ -43,6 +43,60 @@ export default function TodayPage() {
       ),
     [routineTasks, zones],
   );
+
+  const cleaningDate = getCleaningDate(settings.resetTime);
+
+  const zoneIdsScheduledToday = useMemo(() => {
+    const scheduled = settings.scheduledZoneDates ?? {};
+    const ids = new Set<string>();
+    for (const zone of zones) {
+      const dates = scheduled[zone.id];
+      if (!dates?.length) {
+        continue;
+      }
+      if (
+        dates.some(
+          (date) => date === todayTabCalendarDate || date === cleaningDate,
+        )
+      ) {
+        ids.add(zone.id);
+      }
+    }
+    return ids;
+  }, [
+    cleaningDate,
+    settings.scheduledZoneDates,
+    todayTabCalendarDate,
+    zones,
+  ]);
+
+  const zonesForTodayDisplay = useMemo(() => {
+    const seen = new Set<string>();
+    const ordered: Zone[] = [];
+
+    const pushZone = (zone: Zone) => {
+      if (seen.has(zone.id)) {
+        return;
+      }
+      seen.add(zone.id);
+      ordered.push(zone);
+    };
+
+    for (const zone of zonesWithDailyReset) {
+      pushZone(zone);
+    }
+
+    const sortedByRoutine = [...zones].sort(
+      (first, second) => first.sortOrder - second.sortOrder,
+    );
+    for (const zone of sortedByRoutine) {
+      if (zoneIdsScheduledToday.has(zone.id)) {
+        pushZone(zone);
+      }
+    }
+
+    return ordered;
+  }, [zoneIdsScheduledToday, zones, zonesWithDailyReset]);
 
   const orderedBlocks = [
     ...routineBlocks.filter((block) => block.id === currentBlockId),
@@ -92,9 +146,9 @@ export default function TodayPage() {
               <h2 className="mt-1 text-2xl font-black text-stone-950">
                 No zones in this routine
               </h2>
-            ) : zonesWithDailyReset.length > 0 ? (
+            ) : zonesForTodayDisplay.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-2">
-                {zonesWithDailyReset.map((zone) => (
+                {zonesForTodayDisplay.map((zone) => (
                   <span
                     key={zone.id}
                     className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-900"
@@ -105,17 +159,18 @@ export default function TodayPage() {
               </div>
             ) : (
               <h2 className="mt-1 text-2xl font-black text-stone-950">
-                No zones have daily reset tasks yet
+                No daily reset or calendar-scheduled zones for today yet
               </h2>
             )}
             <p className="mt-2 text-sm leading-6 text-stone-600">
-              Pills list zones that have at least one active daily reset task.
-              Weekly, monthly, and seasonal items still follow the schedule and
-              on-today rules from the Zones page.
+              Pills list zones with daily reset work, plus any zone you picked on
+              the calendar for today (same dates as the Zones schedule). Weekly,
+              monthly, and seasonal tasks still follow the schedule and on-today
+              rules from the Zones page.
             </p>
           </div>
           <div className="rounded-2xl bg-stone-100 px-3 py-2 text-center text-xs font-black text-stone-700">
-            {zonesWithDailyReset.length} zones
+            {zonesForTodayDisplay.length} zones
           </div>
         </div>
       </section>
