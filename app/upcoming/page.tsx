@@ -105,7 +105,7 @@ function CadenceQueue({
 
   return (
     <section className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
-      <h2 className="text-lg font-black text-stone-950">{title}</h2>
+      <h2 className="text-sm font-black leading-snug text-stone-950">{title}</h2>
       <ul className="mt-3 space-y-3">
         {tasks.map((task) => {
           const storedDue = upcomingTaskDates[task.id];
@@ -124,16 +124,12 @@ function CadenceQueue({
               key={task.id}
               className="rounded-2xl bg-stone-50 p-3 ring-1 ring-stone-100"
             >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-black text-stone-900">{task.title}</p>
-                  <p className="mt-0.5 text-xs font-semibold text-stone-500">
-                    {task.zoneId ? zoneNameById.get(task.zoneId) ?? "Zone" : ""} ·{" "}
-                    {task.estimatedMinutes} min
-                  </p>
-                </div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 flex-1 truncate text-xs font-black leading-snug text-stone-900">
+                  {task.title}
+                </p>
                 <span
-                  className={`inline-flex shrink-0 select-none rounded-full px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-wide ring-1 ${
+                  className={`inline-flex shrink-0 select-none rounded-full px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-wide ring-1 ${
                     onToday
                       ? "bg-emerald-100 text-emerald-950 ring-emerald-200"
                       : "bg-violet-100 text-violet-950 ring-violet-200"
@@ -143,6 +139,10 @@ function CadenceQueue({
                   QUEUED ({pillDate})
                 </span>
               </div>
+              <p className="mt-1 text-[0.65rem] font-semibold leading-snug text-stone-500">
+                {task.zoneId ? zoneNameById.get(task.zoneId) ?? "Zone" : ""} ·{" "}
+                {task.estimatedMinutes} min
+              </p>
             </li>
           );
         })}
