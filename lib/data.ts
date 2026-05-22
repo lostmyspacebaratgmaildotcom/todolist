@@ -325,82 +325,9 @@ export const tasks: Task[] = [
     active: true,
   },
   // Bathroom — Manage layout:
-  // Same rules as Kitchen: "Today in this zone" = spotlightToday tasks;
-  // "Daily reset" = daily tasks without dailyPreviewOnly; one dailyPreviewOnly
-  //   task stays Today-only preview. Weekly / monthly / seasonal / as_needed
-  //   match Manage section labels.
+  // Intentionally no Bathroom dailies or daily reset rows. Weekly / monthly /
+  //   seasonal / as_needed match Manage section labels.
 
-  // ─── Bathroom: Daily ───
-  {
-    id: "bathroom-daily-1",
-    title: "Clear bathroom sink",
-    zoneId: "bathroom",
-    block: "morning",
-    cadence: "daily",
-    estimatedMinutes: 5,
-    required: true,
-    sortOrder: 1,
-    active: true,
-    spotlightToday: true,
-  },
-  {
-    id: "bathroom-daily-2",
-    title: "Quick wipe bathroom counter",
-    zoneId: "bathroom",
-    block: "evening",
-    cadence: "daily",
-    estimatedMinutes: 3,
-    required: true,
-    sortOrder: 2,
-    active: true,
-    spotlightToday: true,
-  },
-  {
-    id: "bathroom-daily-takeout",
-    title: "Hang damp towels or bath mat",
-    zoneId: "bathroom",
-    block: "evening",
-    cadence: "daily",
-    estimatedMinutes: 2,
-    required: true,
-    sortOrder: 3,
-    active: true,
-    spotlightToday: true,
-    dailyPreviewOnly: true,
-  },
-  {
-    id: "bathroom-daily-3",
-    title: "Reset visible floor",
-    zoneId: "bathroom",
-    block: "evening",
-    cadence: "daily",
-    estimatedMinutes: 4,
-    required: true,
-    sortOrder: 4,
-    active: true,
-  },
-  {
-    id: "bathroom-daily-4",
-    title: "Quick toilet wipe",
-    zoneId: "bathroom",
-    block: "evening",
-    cadence: "daily",
-    estimatedMinutes: 3,
-    required: true,
-    sortOrder: 5,
-    active: true,
-  },
-  {
-    id: "bathroom-daily-5",
-    title: "Check toilet paper or restock",
-    zoneId: "bathroom",
-    block: "evening",
-    cadence: "daily",
-    estimatedMinutes: 2,
-    required: true,
-    sortOrder: 6,
-    active: true,
-  },
   // ─── Bathroom: Weekly ───
   {
     id: "bathroom-weekly-1",
