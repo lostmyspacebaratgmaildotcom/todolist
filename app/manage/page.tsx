@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import type { RoutineBlockId, Task, TaskCadence, ZoneFrequency } from "@/lib/types";
-import { getZoneDailyResetTasks, sortTasks } from "@/lib/progress";
+import { getZoneDailyResetTasks, groupTasksByRoutineBlock, sortTasks } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [
@@ -594,12 +594,18 @@ function CadenceSection({
       <h3 className="text-sm font-black uppercase tracking-wide text-stone-600">
         {label}
       </h3>
-      <ul className="mt-2 space-y-2">
-        {tasks.map((task) => {
-          const isEditing = editingTaskId === task.id;
+      <ul className="mt-2 space-y-4">
+        {groupTasksByRoutineBlock(tasks, routineBlocks).map((group) => (
+          <li key={group.blockId} className="list-none">
+            <p className="text-[0.65rem] font-black uppercase tracking-wide text-stone-500">
+              {group.label}
+            </p>
+            <ul className="mt-2 space-y-2">
+              {group.tasks.map((task) => {
+                const isEditing = editingTaskId === task.id;
 
-          return (
-            <li key={task.id} className="rounded-2xl bg-stone-50 p-3">
+                return (
+                  <li key={task.id} className="rounded-2xl bg-stone-50 p-3">
               {isEditing ? (
                 <form className="space-y-2" onSubmit={onSaveEdit}>
                   <input
@@ -749,9 +755,12 @@ function CadenceSection({
                   </div>
                 </div>
               )}
-            </li>
-          );
-        })}
+                  </li>
+                );
+              })}
+            </ul>
+          </li>
+        ))}
       </ul>
     </div>
   );

@@ -25,8 +25,8 @@ const settingsKey = "apartment-reset:settings";
 const routineDataKey = "apartment-reset:routine-data";
 const logPrefix = "cleaningLog:";
 
-/** Bump when canonical routine rows (e.g. Kitchen, Entry) change so localStorage upgrades. */
-export const ROUTINE_SCHEMA_VERSION = 3;
+/** Bump when canonical routine rows (e.g. Kitchen, Entrance/entry) change so localStorage upgrades. */
+export const ROUTINE_SCHEMA_VERSION = 4;
 
 export const defaultSettings: Settings = {
   selectedTemplateId: defaultTemplateId,

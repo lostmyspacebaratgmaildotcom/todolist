@@ -5,12 +5,13 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import type {
+  RoutineBlockId,
   Task,
   TaskCadence,
   ZoneScheduleCadenceContext,
 } from "@/lib/types";
 import { getCleaningDate, getLocalCalendarDate } from "@/lib/date";
-import { getZoneDailyResetTasks, sortTasks } from "@/lib/progress";
+import { getZoneDailyResetTasks, groupTasksByRoutineBlock, sortTasks } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 function readCadenceSchedulePick(
@@ -49,6 +50,7 @@ export default function ZonesPage() {
     addAsNeededToToday,
     removeAsNeededFromToday,
     asNeededForCalendarTodayIds,
+    routineBlocks,
   } = useCleaningApp();
 
   const completedTaskIds = new Set(dailyLog?.completedTaskIds ?? []);
@@ -199,6 +201,7 @@ export default function ZonesPage() {
                       label="Daily reset"
                       status="Active"
                       tasks={dailyResetTasks}
+                      routineBlocks={routineBlocks}
                       isExpanded={
                         expandedCadence?.zoneId === zone.id &&
                         expandedCadence?.cadence === "daily"
@@ -211,6 +214,7 @@ export default function ZonesPage() {
                     {weeklyTasks.length > 0 ? (
                       <CadenceRow
                         label="Weekly care"
+                        routineBlocks={routineBlocks}
                         status={
                           lastWeeklyPick
                             ? scheduledOnBlurb(lastWeeklyPick)
@@ -233,6 +237,7 @@ export default function ZonesPage() {
                         {monthlyTasks.length > 0 ? (
                           <CadenceRow
                             label="Monthly care"
+                            routineBlocks={routineBlocks}
                             status={
                               lastMonthlyPick
                                 ? scheduledOnBlurb(lastMonthlyPick)
@@ -255,6 +260,7 @@ export default function ZonesPage() {
                         {seasonalTasks.length > 0 ? (
                           <CadenceRow
                             label="Seasonal projects"
+                            routineBlocks={routineBlocks}
                             status={
                               lastSeasonalPick
                                 ? scheduledOnBlurb(lastSeasonalPick)
@@ -280,6 +286,7 @@ export default function ZonesPage() {
                       <CadenceRow
                         label="As needed"
                         status="When you notice"
+                        routineBlocks={routineBlocks}
                         tasks={adHocTasks}
                         isExpanded={
                           expandedCadence?.zoneId === zone.id &&
@@ -470,6 +477,7 @@ function CadenceRow({
   label,
   status,
   tasks,
+  routineBlocks,
   isExpanded,
   showViewTasks,
   onToggle,
@@ -483,6 +491,7 @@ function CadenceRow({
   label: string;
   status: string;
   tasks: Task[];
+  routineBlocks: { id: RoutineBlockId; name: string }[];
   isExpanded: boolean;
   showViewTasks: boolean;
   onToggle: () => void;
@@ -493,6 +502,8 @@ function CadenceRow({
   onSchedule?: () => void;
   scheduleAriaLabel?: string;
 }) {
+  const taskGroups = groupTasksByRoutineBlock(tasks, routineBlocks);
+
   return (
     <div className="rounded-2xl bg-stone-50 px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
@@ -550,83 +561,92 @@ function CadenceRow({
         </div>
       </div>
       {isExpanded ? (
-        <ul className="mt-2 space-y-1.5">
-          {tasks.map((task) => {
-            const isDone = completedTaskIds.has(task.id);
-            const onToday = Boolean(asNeededOnTodayIds?.has(task.id));
-            const rowBase = `rounded-xl px-2.5 py-1.5 ${isDone ? "bg-emerald-100" : "bg-white"}`;
-            const titleClass = `min-w-0 text-sm font-semibold ${isDone ? "text-emerald-700 line-through" : "text-stone-700"}`;
+        <ul className="mt-2 space-y-3">
+          {taskGroups.map((group) => (
+            <li key={group.blockId} className="list-none">
+              <p className="text-[0.65rem] font-black uppercase tracking-wide text-stone-500">
+                {group.label}
+              </p>
+              <ul className="mt-1.5 space-y-1.5">
+                {group.tasks.map((task) => {
+                  const isDone = completedTaskIds.has(task.id);
+                  const onToday = Boolean(asNeededOnTodayIds?.has(task.id));
+                  const rowBase = `rounded-xl px-2.5 py-1.5 ${isDone ? "bg-emerald-100" : "bg-white"}`;
+                  const titleClass = `min-w-0 text-sm font-semibold ${isDone ? "text-emerald-700 line-through" : "text-stone-700"}`;
 
-            if (onAddAsNeededToToday) {
-              return (
-                <li
-                  key={task.id}
-                  className={`grid grid-cols-[minmax(0,1fr)_1.75rem_3.75rem] items-center gap-x-2 gap-y-0.5 ${rowBase}`}
-                >
-                  <span className={titleClass}>{task.title}</span>
-                  <div className="flex h-7 items-center justify-center justify-self-center">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onToday
-                          ? onRemoveAsNeededFromToday?.(task.id)
-                          : onAddAsNeededToToday(task.id)
-                      }
-                      aria-label={
-                        onToday
-                          ? `Remove ${task.title} from today`
-                          : `Add ${task.title} to today`
-                      }
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 transition ${
-                        onToday
-                          ? "bg-emerald-100 text-emerald-700 ring-emerald-200 hover:bg-emerald-200"
-                          : "bg-white text-emerald-800 ring-emerald-200 hover:bg-emerald-50"
-                      }`}
+                  if (onAddAsNeededToToday) {
+                    return (
+                      <li
+                        key={task.id}
+                        className={`grid grid-cols-[minmax(0,1fr)_1.75rem_3.75rem] items-center gap-x-2 gap-y-0.5 ${rowBase}`}
+                      >
+                        <span className={titleClass}>{task.title}</span>
+                        <div className="flex h-7 items-center justify-center justify-self-center">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onToday
+                                ? onRemoveAsNeededFromToday?.(task.id)
+                                : onAddAsNeededToToday(task.id)
+                            }
+                            aria-label={
+                              onToday
+                                ? `Remove ${task.title} from today`
+                                : `Add ${task.title} to today`
+                            }
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 transition ${
+                              onToday
+                                ? "bg-emerald-100 text-emerald-700 ring-emerald-200 hover:bg-emerald-200"
+                                : "bg-white text-emerald-800 ring-emerald-200 hover:bg-emerald-50"
+                            }`}
+                          >
+                            {onToday ? (
+                              <svg
+                                aria-hidden="true"
+                                className="h-3 w-3"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2.5"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M20 6 9 17l-5-5" />
+                              </svg>
+                            ) : (
+                              <svg
+                                aria-hidden="true"
+                                className="h-3 w-3"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M8 6v12l9-6z" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+                        <span className="text-right text-xs font-semibold tabular-nums text-stone-400">
+                          {task.estimatedMinutes} min
+                        </span>
+                      </li>
+                    );
+                  }
+
+                  return (
+                    <li
+                      key={task.id}
+                      className={`flex items-center justify-between gap-2 ${rowBase}`}
                     >
-                      {onToday ? (
-                        <svg
-                          aria-hidden="true"
-                          className="h-3 w-3"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2.5"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M20 6 9 17l-5-5" />
-                        </svg>
-                      ) : (
-                        <svg
-                          aria-hidden="true"
-                          className="h-3 w-3"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M8 6v12l9-6z" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                  <span className="text-right text-xs font-semibold tabular-nums text-stone-400">
-                    {task.estimatedMinutes} min
-                  </span>
-                </li>
-              );
-            }
-
-            return (
-              <li
-                key={task.id}
-                className={`flex items-center justify-between gap-2 ${rowBase}`}
-              >
-                <span className={`min-w-0 flex-1 ${titleClass}`}>{task.title}</span>
-                <span className="shrink-0 text-xs font-semibold tabular-nums text-stone-400">
-                  {task.estimatedMinutes} min
-                </span>
-              </li>
-            );
-          })}
+                      <span className={`min-w-0 flex-1 ${titleClass}`}>{task.title}</span>
+                      <span className="shrink-0 text-xs font-semibold tabular-nums text-stone-400">
+                        {task.estimatedMinutes} min
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          ))}
         </ul>
       ) : null}
     </div>
