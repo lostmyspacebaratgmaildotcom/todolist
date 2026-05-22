@@ -533,21 +533,9 @@ function CadenceRow({
     <div className="rounded-2xl bg-stone-50 px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-black text-stone-800">{label}</span>
+          <span className="text-[0.65rem] font-bold leading-snug tracking-wide text-stone-800">{label}</span>
           <span
-            className={`${
-              status.startsWith("SCHEDULED ON") ||
-              status === "Active" ||
-              status === "When you notice"
-                ? "rounded-2xl px-2 py-1 text-[0.65rem] leading-snug"
-                : "rounded-full px-2 py-0.5 text-[0.6rem]"
-            } font-bold tracking-wide ${
-              status.startsWith("SCHEDULED ON") ||
-              status === "Active" ||
-              status === "When you notice"
-                ? "normal-case"
-                : "uppercase"
-            } ${cadenceStatusStyle(status)}`}
+            className={`rounded-2xl px-2 py-1 text-[0.65rem] font-bold leading-snug tracking-wide normal-case ${cadenceStatusStyle(status)}`}
           >
             {status}
           </span>
@@ -589,7 +577,7 @@ function CadenceRow({
         <ul className="mt-2 space-y-3">
           {taskGroups.map((group) => (
             <li key={group.blockId} className="list-none">
-              <p className="text-[0.65rem] font-black uppercase tracking-wide text-stone-500">
+              <p className="text-[0.65rem] font-bold leading-snug tracking-wide text-stone-500">
                 {group.label}
               </p>
               <ul className="mt-1.5 space-y-1.5">
@@ -597,7 +585,7 @@ function CadenceRow({
                   const isDone = completedTaskIds.has(task.id);
                   const onToday = Boolean(asNeededOnTodayIds?.has(task.id));
                   const rowBase = `rounded-xl px-2.5 py-1.5 ${isDone ? "bg-emerald-100" : "bg-white"}`;
-                  const titleClass = `min-w-0 text-sm font-semibold ${isDone ? "text-emerald-700 line-through" : "text-stone-700"}`;
+                  const titleClass = `min-w-0 text-[0.65rem] font-bold leading-snug tracking-wide ${isDone ? "text-emerald-700 line-through" : "text-stone-700"}`;
 
                   if (onAddAsNeededToToday) {
                     return (
@@ -650,7 +638,7 @@ function CadenceRow({
                             )}
                           </button>
                         </div>
-                        <span className="text-right text-xs font-semibold tabular-nums text-stone-400">
+                        <span className="text-right text-[0.65rem] font-bold leading-snug tracking-wide tabular-nums text-stone-400">
                           {task.estimatedMinutes} min
                         </span>
                       </li>
@@ -663,7 +651,7 @@ function CadenceRow({
                       className={`flex items-center justify-between gap-2 ${rowBase}`}
                     >
                       <span className={`min-w-0 flex-1 ${titleClass}`}>{task.title}</span>
-                      <span className="shrink-0 text-xs font-semibold tabular-nums text-stone-400">
+                      <span className="shrink-0 text-[0.65rem] font-bold leading-snug tracking-wide tabular-nums text-stone-400">
                         {task.estimatedMinutes} min
                       </span>
                     </li>
