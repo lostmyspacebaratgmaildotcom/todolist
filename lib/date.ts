@@ -35,3 +35,4 @@ function parseResetTime(resetTime: string): [number, number] {
 
   return [Number(hour), Number(minute)];
 }
+
