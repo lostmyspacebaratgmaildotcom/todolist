@@ -39,10 +39,21 @@ function readWeeklySchedulePick(
   return readCadenceSchedulePick(map, "kitchen", "weekly");
 }
 
+/** Picks tied to a calendar day should disappear from pills once that day has passed. */
+function isSchedulePillDateActive(
+  iso: string | null,
+  calendarToday: string,
+): iso is string {
+  return (
+    typeof iso === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(iso) &&
+    iso >= calendarToday
+  );
+}
+
 export default function ZonesPage() {
   const {
     zones,
-    selectedZoneIds,
     routineTasks,
     dailyLog,
     settings,
@@ -66,6 +77,8 @@ export default function ZonesPage() {
   const [scheduleTargetCadence, setScheduleTargetCadence] =
     useState<ZoneScheduleCadenceContext | null>(null);
   const [scheduleDateValue, setScheduleDateValue] = useState("");
+
+  const calendarToday = getLocalCalendarDate();
 
   function openScheduleDialog(zoneId: string, cadence: ZoneScheduleCadenceContext) {
     setScheduleTargetZoneId(zoneId);
@@ -110,7 +123,6 @@ export default function ZonesPage() {
 
       <div className="space-y-4">
         {zones.map((zone) => {
-          const isSelected = selectedZoneIds.includes(zone.id);
           const zoneTasks = routineTasks.filter(
             (task) => task.zoneId === zone.id,
           );
@@ -161,8 +173,13 @@ export default function ZonesPage() {
           const lastZonePick = readCadenceSchedulePick(byCadence, zone.id, "zone");
           const lastWeeklyPick = readWeeklySchedulePick(byCadence, zone.id);
 
+          const activeZonePick = isSchedulePillDateActive(lastZonePick, calendarToday)
+            ? lastZonePick
+            : null;
           const zoneScheduledSummaryIso = showScheduledZoneState
-            ? lastZonePick ?? nextFutureSchedule ?? cleaningDate
+            ? activeZonePick ??
+              nextFutureSchedule ??
+              (scheduledForTodayNotStarted ? cleaningDate : null)
             : null;
           const earliestMonthlyDue = getEarliestQueuedDueDate(
             monthlyTasks,
@@ -216,7 +233,7 @@ export default function ZonesPage() {
                         label="Weekly care"
                         routineBlocks={routineBlocks}
                         status={
-                          lastWeeklyPick
+                          isSchedulePillDateActive(lastWeeklyPick, calendarToday)
                             ? scheduledOnBlurb(lastWeeklyPick)
                             : "Due this week"
                         }
@@ -225,7 +242,7 @@ export default function ZonesPage() {
                           expandedCadence?.zoneId === zone.id &&
                           expandedCadence?.cadence === "weekly"
                         }
-                        showViewTasks={isSelected}
+                        showViewTasks={true}
                         onToggle={() => toggleCadence(zone.id, "weekly")}
                         completedTaskIds={completedTaskIds}
                         onSchedule={() => openScheduleDialog(zone.id, "weekly")}
@@ -239,9 +256,13 @@ export default function ZonesPage() {
                             label="Monthly care"
                             routineBlocks={routineBlocks}
                             status={
-                              lastMonthlyPick
+                              isSchedulePillDateActive(lastMonthlyPick, calendarToday)
                                 ? scheduledOnBlurb(lastMonthlyPick)
-                                : monthlyUpcomingScheduled && earliestMonthlyDue
+                                : monthlyUpcomingScheduled &&
+                                    isSchedulePillDateActive(
+                                      earliestMonthlyDue,
+                                      calendarToday,
+                                    )
                                   ? scheduledOnBlurb(earliestMonthlyDue)
                                   : "Due this month"
                             }
@@ -250,7 +271,7 @@ export default function ZonesPage() {
                               expandedCadence?.zoneId === zone.id &&
                               expandedCadence?.cadence === "monthly"
                             }
-                            showViewTasks={isSelected}
+                            showViewTasks={true}
                             onToggle={() => toggleCadence(zone.id, "monthly")}
                             completedTaskIds={completedTaskIds}
                             onSchedule={() => openScheduleDialog(zone.id, "monthly")}
@@ -262,9 +283,13 @@ export default function ZonesPage() {
                             label="Seasonal projects"
                             routineBlocks={routineBlocks}
                             status={
-                              lastSeasonalPick
+                              isSchedulePillDateActive(lastSeasonalPick, calendarToday)
                                 ? scheduledOnBlurb(lastSeasonalPick)
-                                : seasonalUpcomingScheduled && earliestSeasonalDue
+                                : seasonalUpcomingScheduled &&
+                                    isSchedulePillDateActive(
+                                      earliestSeasonalDue,
+                                      calendarToday,
+                                    )
                                   ? scheduledOnBlurb(earliestSeasonalDue)
                                   : "Due this quarter"
                             }
@@ -273,7 +298,7 @@ export default function ZonesPage() {
                               expandedCadence?.zoneId === zone.id &&
                               expandedCadence?.cadence === "seasonal"
                             }
-                            showViewTasks={isSelected}
+                            showViewTasks={true}
                             onToggle={() => toggleCadence(zone.id, "seasonal")}
                             completedTaskIds={completedTaskIds}
                             onSchedule={() => openScheduleDialog(zone.id, "seasonal")}
@@ -292,7 +317,7 @@ export default function ZonesPage() {
                           expandedCadence?.zoneId === zone.id &&
                           expandedCadence?.cadence === "as_needed"
                         }
-                        showViewTasks={isSelected}
+                        showViewTasks={true}
                         onToggle={() => toggleCadence(zone.id, "as_needed")}
                         completedTaskIds={completedTaskIds}
                         onAddAsNeededToToday={addAsNeededToToday}
@@ -399,10 +424,10 @@ function scheduledOnBlurb(isoDate: string): string {
   const formatted = formatDdMmYy(isoDate);
 
   if (!formatted) {
-    return "SCHEDULED ON";
+    return "Scheduled on";
   }
 
-  return `SCHEDULED ON ${formatted}`;
+  return `Scheduled on ${formatted}`;
 }
 
 function getEarliestQueuedDueDate(
@@ -508,21 +533,9 @@ function CadenceRow({
     <div className="rounded-2xl bg-stone-50 px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-black text-stone-800">{label}</span>
+          <span className="text-[0.65rem] font-bold leading-snug tracking-wide text-stone-800">{label}</span>
           <span
-            className={`${
-              status.startsWith("SCHEDULED ON") ||
-              status === "Active" ||
-              status === "When you notice"
-                ? "rounded-2xl px-2 py-1 text-[0.65rem] leading-snug"
-                : "rounded-full px-2 py-0.5 text-[0.6rem]"
-            } font-bold tracking-wide ${
-              status.startsWith("SCHEDULED ON") ||
-              status === "Active" ||
-              status === "When you notice"
-                ? "normal-case"
-                : "uppercase"
-            } ${cadenceStatusStyle(status)}`}
+            className={`rounded-2xl px-2 py-1 text-[0.65rem] font-bold leading-snug tracking-wide normal-case ${cadenceStatusStyle(status)}`}
           >
             {status}
           </span>
@@ -564,7 +577,7 @@ function CadenceRow({
         <ul className="mt-2 space-y-3">
           {taskGroups.map((group) => (
             <li key={group.blockId} className="list-none">
-              <p className="text-[0.65rem] font-black uppercase tracking-wide text-stone-500">
+              <p className="text-[0.65rem] font-bold leading-snug tracking-wide text-stone-500">
                 {group.label}
               </p>
               <ul className="mt-1.5 space-y-1.5">
@@ -572,7 +585,7 @@ function CadenceRow({
                   const isDone = completedTaskIds.has(task.id);
                   const onToday = Boolean(asNeededOnTodayIds?.has(task.id));
                   const rowBase = `rounded-xl px-2.5 py-1.5 ${isDone ? "bg-emerald-100" : "bg-white"}`;
-                  const titleClass = `min-w-0 text-sm font-semibold ${isDone ? "text-emerald-700 line-through" : "text-stone-700"}`;
+                  const titleClass = `min-w-0 text-[0.65rem] font-bold leading-snug tracking-wide ${isDone ? "text-emerald-700 line-through" : "text-stone-700"}`;
 
                   if (onAddAsNeededToToday) {
                     return (
@@ -625,7 +638,7 @@ function CadenceRow({
                             )}
                           </button>
                         </div>
-                        <span className="text-right text-xs font-semibold tabular-nums text-stone-400">
+                        <span className="text-right text-[0.65rem] font-bold leading-snug tracking-wide tabular-nums text-stone-400">
                           {task.estimatedMinutes} min
                         </span>
                       </li>
@@ -638,7 +651,7 @@ function CadenceRow({
                       className={`flex items-center justify-between gap-2 ${rowBase}`}
                     >
                       <span className={`min-w-0 flex-1 ${titleClass}`}>{task.title}</span>
-                      <span className="shrink-0 text-xs font-semibold tabular-nums text-stone-400">
+                      <span className="shrink-0 text-[0.65rem] font-bold leading-snug tracking-wide tabular-nums text-stone-400">
                         {task.estimatedMinutes} min
                       </span>
                     </li>
@@ -654,7 +667,7 @@ function CadenceRow({
 }
 
 function cadenceStatusStyle(status: string): string {
-  if (status.startsWith("SCHEDULED ON")) {
+  if (status.startsWith("Scheduled on")) {
     return "bg-violet-100 text-violet-900";
   }
 

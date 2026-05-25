@@ -25,8 +25,8 @@ const settingsKey = "apartment-reset:settings";
 const routineDataKey = "apartment-reset:routine-data";
 const logPrefix = "cleaningLog:";
 
-/** Bump when canonical routine rows (e.g. Kitchen, Bathroom, Bedroom, Entrance/entry) change so localStorage upgrades. */
-export const ROUTINE_SCHEMA_VERSION = 7;
+/** Bump when canonical routine rows (e.g. Kitchen, Bathroom, Bedroom, Vanity counter, Laundry, Entrance/entry) change so localStorage upgrades. */
+export const ROUTINE_SCHEMA_VERSION = 10;
 
 export const defaultSettings: Settings = {
   selectedTemplateId: defaultTemplateId,
@@ -246,22 +246,33 @@ function migrateRoutineSchemaIfNeeded(
   const bedroomCanon = seedTasks.filter(
     (task) => task.zoneId === "bedroom" && allowedIds.has(task.id),
   );
+  const vanityCanon = seedTasks.filter(
+    (task) => task.zoneId === "vanity" && allowedIds.has(task.id),
+  );
+  const laundryCanon = seedTasks.filter(
+    (task) => task.zoneId === "laundry" && allowedIds.has(task.id),
+  );
   const rest = routine.tasks.filter(
     (task) =>
       task.zoneId !== "kitchen" &&
       task.zoneId !== "entry" &&
       task.zoneId !== "bathroom" &&
-      task.zoneId !== "bedroom",
+      task.zoneId !== "bedroom" &&
+      task.zoneId !== "vanity" &&
+      task.zoneId !== "laundry",
   );
 
   return {
     ...routine,
+    zones: mergeZonesFromSeed(routine.zones, defaultZones),
     tasks: [
       ...rest,
       ...kitchenCanon.map((task) => ({ ...task })),
       ...entryCanon.map((task) => ({ ...task })),
       ...bathroomCanon.map((task) => ({ ...task })),
       ...bedroomCanon.map((task) => ({ ...task })),
+      ...vanityCanon.map((task) => ({ ...task })),
+      ...laundryCanon.map((task) => ({ ...task })),
     ],
     updatedAt: new Date().toISOString(),
     routineSchemaVersion: ROUTINE_SCHEMA_VERSION,
@@ -285,6 +296,19 @@ function isZoneFrequency(value: unknown): value is ZoneFrequency {
     value === "weekly" ||
     value === "monthly" ||
     value === "once"
+  );
+}
+
+
+function mergeZonesFromSeed(current: Zone[], seed: Zone[]): Zone[] {
+  const byId = new Map(current.map((zone) => [zone.id, zone]));
+
+  return normalizeZones(
+    seed.map((zone) => {
+      const existing = byId.get(zone.id);
+
+      return existing ? { ...existing } : { ...zone };
+    }),
   );
 }
 
