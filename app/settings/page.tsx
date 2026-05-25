@@ -28,7 +28,9 @@ export default function SettingsPage() {
           <h2 className="text-lg font-black text-stone-950">Daily reset</h2>
           <p className="mt-2 text-sm leading-6 text-stone-600">
             A checklist belongs to the cleaning day. The default 1:00 AM reset keeps
-            late-night evening routines on the previous day.
+            late-night evening routines on the previous day. Moving this time can
+            shift which calendar day your routine is on; it does not erase checkmarks
+            for the same routine day. Use &ldquo;Reset today&apos;s checklist&rdquo; below when you want a fresh list.
           </p>
           <label
             htmlFor="reset-time"

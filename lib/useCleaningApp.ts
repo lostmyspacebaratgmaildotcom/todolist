@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   defaultZoneId,
   routineBlocks,
@@ -83,7 +83,7 @@ export function useCleaningApp() {
     setIsReady(true);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isReady) {
       return;
     }
@@ -226,9 +226,21 @@ export function useCleaningApp() {
       }
 
       setSettings((currentSettings) => {
+        const today = getCleaningDate(currentSettings.resetTime);
+        const forCleaningToday = isoDate === today;
+        const nextZoneIds = forCleaningToday
+          ? Array.from(new Set([...currentSettings.currentZoneIds, zoneId]))
+          : currentSettings.currentZoneIds;
+
         const nextSettings = normalizeSettings(
           {
             ...currentSettings,
+            ...(forCleaningToday
+              ? {
+                  currentZoneId: nextZoneIds[0] ?? currentSettings.currentZoneId,
+                  currentZoneIds: nextZoneIds,
+                }
+              : {}),
             scheduledZoneDates: addScheduledZoneDate(
               currentSettings.scheduledZoneDates,
               zoneId,
