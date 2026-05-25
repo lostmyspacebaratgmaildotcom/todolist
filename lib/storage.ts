@@ -193,6 +193,15 @@ export function saveDailyLog(log: DailyLog): void {
   window.localStorage.setItem(`${logPrefix}${log.date}`, JSON.stringify(log));
 }
 
+/** Removes the persisted log for a cleaning day so a reset cannot merge old checkmarks back in. */
+export function removeDailyLogStorageForDate(date: string): void {
+  if (!canUseStorage()) {
+    return;
+  }
+
+  window.localStorage.removeItem(`${logPrefix}${date}`);
+}
+
 export function clearLocalData(): void {
   if (!canUseStorage()) {
     return;

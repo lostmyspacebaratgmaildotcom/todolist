@@ -11,6 +11,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { flushSync } from "react-dom";
 import {
   defaultZoneId,
   routineBlocks,
@@ -27,6 +28,7 @@ import {
   getTodayLog,
   loadRoutineData,
   loadSettings,
+  removeDailyLogStorageForDate,
   saveDailyLog,
   saveRoutineData,
   saveSettings,
@@ -763,8 +765,14 @@ function useCleaningAppState() {
       updatedAt: new Date().toISOString(),
     };
 
+    removeDailyLogStorageForDate(cleaningDate);
     saveDailyLog(nextLog);
-    setDailyLog(nextLog);
+    flushSync(() => {
+      if (changedUpcoming) {
+        setSettings(nextSettings);
+      }
+      setDailyLog(nextLog);
+    });
   }, [routineData.tasks, routineData.zones, settings, selectedZoneIds]);
 
   const addZone = useCallback(

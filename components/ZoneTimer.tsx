@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useCleaningApp } from "@/lib/useCleaningApp";
 
 const fifteenMinutes = 15 * 60;
 
 export function ZoneTimer() {
+  const { resetToday } = useCleaningApp();
   const [remainingSeconds, setRemainingSeconds] = useState(fifteenMinutes);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -86,6 +88,7 @@ export function ZoneTimer() {
           onClick={() => {
             setIsRunning(false);
             setRemainingSeconds(fifteenMinutes);
+            resetToday();
           }}
           className="min-h-12 rounded-2xl bg-white/10 px-3 text-sm font-bold text-white ring-1 ring-white/20 transition hover:bg-white/15"
         >
