@@ -7,7 +7,6 @@ const navItems = [
   { href: "/today", label: "Today", icon: "check" },
   { href: "/zones", label: "Zones", icon: "home" },
   { href: "/manage", label: "Manage", icon: "edit" },
-  { href: "/upcoming", label: "Upcoming", icon: "calendar" },
   { href: "/settings", label: "Settings", icon: "gear" },
 ];
 
@@ -19,7 +18,7 @@ export function BottomNav() {
       aria-label="Primary navigation"
       className="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 shadow-[0_-10px_30px_rgba(68,64,60,0.08)] backdrop-blur"
     >
-      <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+      <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -63,15 +62,6 @@ function NavIcon({ icon }: { icon: string }) {
       <svg {...commonProps}>
         <path d="M4 11.5 12 5l8 6.5" />
         <path d="M6.5 10.5V19h11v-8.5" />
-      </svg>
-    );
-  }
-
-  if (icon === "calendar") {
-    return (
-      <svg {...commonProps}>
-        <rect x="3" y="5" width="18" height="16" rx="2" />
-        <path d="M16 3v4M8 3v4M3 11h18" />
       </svg>
     );
   }
