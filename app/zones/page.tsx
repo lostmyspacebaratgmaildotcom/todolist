@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import type { Task, TaskCadence, Zone, ZoneFrequency } from "@/lib/types";
 import { getCleaningDate } from "@/lib/date";
-import { getZoneDailyResetTasks, sortTasks } from "@/lib/progress";
+import { getZoneDailyResetTasks } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [

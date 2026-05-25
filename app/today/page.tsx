@@ -7,7 +7,11 @@ import { ProgressPill } from "@/components/ProgressPill";
 import { RoutineBlockCard } from "@/components/RoutineBlockCard";
 import { ZoneTimer } from "@/components/ZoneTimer";
 import { formatDisplayDate, getCleaningDate } from "@/lib/date";
-import { getCurrentBlockId, getTasksForBlock } from "@/lib/progress";
+import {
+  getCurrentBlockId,
+  getTasksForBlock,
+  getZoneDailyResetTasks,
+} from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 export default function TodayPage() {
@@ -101,7 +105,7 @@ export default function TodayPage() {
             <p className="mt-2 text-sm leading-6 text-stone-600">
               Pills list selected zones that have at least one active daily reset
               task. Weekly, monthly, and seasonal items still follow the schedule
-              and "on today" rules from the Zones page.
+              and &quot;on today&quot; rules from the Zones page.
             </p>
           </div>
           <div className="rounded-2xl bg-stone-100 px-3 py-2 text-center text-xs font-black text-stone-700">
