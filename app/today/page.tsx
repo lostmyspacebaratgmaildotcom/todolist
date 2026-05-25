@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { ProgressPill } from "@/components/ProgressPill";
@@ -12,6 +12,7 @@ import {
   getTasksForBlock,
   getZoneDailyResetTasks,
 } from "@/lib/progress";
+import type { RoutineBlockId } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 export default function TodayPage() {
@@ -37,7 +38,13 @@ export default function TodayPage() {
     [routineTasks, selectedZones],
   );
 
-  const currentBlockId = getCurrentBlockId();
+  const [currentBlockId, setCurrentBlockId] =
+    useState<RoutineBlockId>("morning");
+
+  useEffect(() => {
+    setCurrentBlockId(getCurrentBlockId());
+  }, []);
+
   const orderedBlocks = [
     ...routineBlocks.filter((block) => block.id === currentBlockId),
     ...routineBlocks.filter((block) => block.id !== currentBlockId),
@@ -49,16 +56,16 @@ export default function TodayPage() {
       .flatMap((block) => getTasksForBlock(todayTasks, block.id))
       .find((task) => !completedTaskIds.includes(task.id)) ?? null;
 
+  const descriptionText = dailyLog
+    ? `${formatDisplayDate(getCleaningDate(settings.resetTime))} (routine day). Dailies, monthly and seasonal items when due, and as-needed tasks you add from Zones or Manage. Progress stays on this browser.`
+    : "Loading your local checklist.";
+
   return (
     <AppShell>
       <PageHeader
         eyebrow="Today"
         title="Your apartment reset"
-        description={
-          dailyLog
-            ? `${formatDisplayDate(getCleaningDate(settings.resetTime))} (routine day). Progress stays private on this browser.`
-            : "Loading your local checklist."
-        }
+        description={descriptionText}
       />
 
       {!settings.firstRunComplete && isReady ? (
@@ -127,7 +134,7 @@ export default function TodayPage() {
           </p>
         ) : (
           <p className="mt-1 text-sm font-semibold text-stone-600">
-            Select zones with assigned tasks, or complete the visible zone tasks.
+            Complete the next visible task, or adjust cadence schedules on Zones.
           </p>
         )}
       </section>

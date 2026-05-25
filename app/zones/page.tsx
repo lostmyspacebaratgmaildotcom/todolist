@@ -4,81 +4,94 @@ import { Fragment, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import type { Task, TaskCadence, Zone, ZoneFrequency } from "@/lib/types";
-import { getCleaningDate } from "@/lib/date";
-import { getZoneDailyResetTasks } from "@/lib/progress";
+import type {
+  RoutineBlockId,
+  Task,
+  TaskCadence,
+  ZoneScheduleCadenceContext,
+} from "@/lib/types";
+import { getCleaningDate, getLocalCalendarDate } from "@/lib/date";
+import { getZoneDailyResetTasks, groupTasksByRoutineBlock, sortTasks } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
-const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" },
-  { value: "once", label: "Once" },
-];
+function readCadenceSchedulePick(
+  map: Record<string, string> | undefined,
+  zoneId: string,
+  context: ZoneScheduleCadenceContext,
+): string | null {
+  const raw = map?.[`${zoneId}:${context}`];
+  if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  return null;
+}
+
+function readWeeklySchedulePick(
+  map: Record<string, string> | undefined,
+  zoneId: string,
+): string | null {
+  const direct = readCadenceSchedulePick(map, zoneId, "weekly");
+  if (direct) {
+    return direct;
+  }
+
+  return readCadenceSchedulePick(map, "kitchen", "weekly");
+}
+
+/** Picks tied to a calendar day should disappear from pills once that day has passed. */
+function isSchedulePillDateActive(
+  iso: string | null,
+  calendarToday: string,
+): iso is string {
+  return (
+    typeof iso === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(iso) &&
+    iso >= calendarToday
+  );
+}
 
 export default function ZonesPage() {
   const {
     zones,
-    selectedZoneIds,
     routineTasks,
     dailyLog,
     settings,
-    addZoneToday,
-    removeZoneToday,
     scheduleZoneForDate,
-    deleteZone,
-    updateZone,
+    addAsNeededToToday,
+    removeAsNeededFromToday,
+    asNeededForCalendarTodayIds,
+    routineBlocks,
   } = useCleaningApp();
 
   const completedTaskIds = new Set(dailyLog?.completedTaskIds ?? []);
+  const asNeededOnTodayIds = asNeededForCalendarTodayIds;
 
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [expandedCadence, setExpandedCadence] = useState<{
     zoneId: string;
     cadence: TaskCadence;
   } | null>(null);
-  const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editFrequency, setEditFrequency] = useState<ZoneFrequency>("daily");
   const [scheduleTargetZoneId, setScheduleTargetZoneId] = useState<string | null>(
     null,
   );
+  const [scheduleTargetCadence, setScheduleTargetCadence] =
+    useState<ZoneScheduleCadenceContext | null>(null);
   const [scheduleDateValue, setScheduleDateValue] = useState("");
 
-  function openScheduleDialog(zoneId: string) {
+  const calendarToday = getLocalCalendarDate();
+
+  function openScheduleDialog(zoneId: string, cadence: ZoneScheduleCadenceContext) {
     setScheduleTargetZoneId(zoneId);
-    setScheduleDateValue(getCleaningDate(settings.resetTime));
-  }
-
-  function startEdit(zone: Zone) {
-    setEditingZoneId(zone.id);
-    setEditName(zone.name);
-    setEditDescription(zone.description);
-    setEditFrequency(zone.frequency);
-    setOpenMenuId(null);
-  }
-
-  function cancelEdit() {
-    setEditingZoneId(null);
-  }
-
-  function saveEdit() {
-    if (!editingZoneId || !editName.trim()) return;
-    updateZone(editingZoneId, {
-      name: editName,
-      description: editDescription,
-      frequency: editFrequency,
-    });
-    cancelEdit();
-  }
-
-  function handleDelete(zone: Zone) {
-    setOpenMenuId(null);
-    if (zones.length <= 1) return;
-    if (window.confirm(`Delete ${zone.name}?`)) {
-      deleteZone(zone.id);
-    }
+    setScheduleTargetCadence(cadence);
+    const savedPick =
+      cadence === "weekly"
+        ? readWeeklySchedulePick(settings.lastZoneScheduleByCadence, zoneId)
+        : readCadenceSchedulePick(
+            settings.lastZoneScheduleByCadence,
+            zoneId,
+            cadence,
+          );
+    setScheduleDateValue(savedPick ?? getLocalCalendarDate());
   }
 
   function toggleCadence(zoneId: string, cadence: TaskCadence) {
@@ -110,7 +123,6 @@ export default function ZonesPage() {
 
       <div className="space-y-4">
         {zones.map((zone) => {
-          const isSelected = selectedZoneIds.includes(zone.id);
           const zoneTasks = routineTasks.filter(
             (task) => task.zoneId === zone.id,
           );
@@ -118,305 +130,203 @@ export default function ZonesPage() {
             (t) => !t.cadence || t.cadence === "daily",
           );
           const dailyResetTasks = getZoneDailyResetTasks(routineTasks, zone.id);
-          const weeklyTasks = zoneTasks.filter((t) => t.cadence === "weekly");
           const monthlyTasks = zoneTasks.filter((t) => t.cadence === "monthly");
           const seasonalTasks = zoneTasks.filter(
             (t) => t.cadence === "seasonal",
           );
           const adHocTasks = zoneTasks.filter((t) => t.cadence === "as_needed");
+          const weeklyTasks = sortTasks(
+            zoneTasks.filter((t) => t.cadence === "weekly"),
+          );
           const dailyMinutes = dailyTasks.reduce(
             (s, t) => s + t.estimatedMinutes,
             0,
           );
-          const allDailyDone =
-            dailyTasks.length > 0 &&
-            dailyTasks.every((t) => completedTaskIds.has(t.id));
 
-          const isMenuOpen = openMenuId === zone.id;
-          const isEditing = editingZoneId === zone.id;
+          const cleaningDate = getCleaningDate(settings.resetTime);
+          const zoneScheduledDates = settings.scheduledZoneDates?.[zone.id] ?? [];
+          const futureScheduledDates = zoneScheduledDates.filter(
+            (date) => date > cleaningDate,
+          );
+          const nextFutureSchedule =
+            [...futureScheduledDates].sort()[0] ?? null;
+          const scheduledForTodayNotStarted =
+            zoneScheduledDates.includes(cleaningDate);
+          const showScheduledZoneState =
+            Boolean(nextFutureSchedule) || scheduledForTodayNotStarted;
+
+          const upcomingDates = settings.upcomingTaskDates ?? {};
+          const monthlyUpcomingScheduled = cadenceTasksQueuedForLater(
+            monthlyTasks,
+            cleaningDate,
+            upcomingDates,
+          );
+          const seasonalUpcomingScheduled = cadenceTasksQueuedForLater(
+            seasonalTasks,
+            cleaningDate,
+            upcomingDates,
+          );
+
+          const byCadence = settings.lastZoneScheduleByCadence;
+          const lastMonthlyPick = readCadenceSchedulePick(byCadence, zone.id, "monthly");
+          const lastSeasonalPick = readCadenceSchedulePick(byCadence, zone.id, "seasonal");
+          const lastZonePick = readCadenceSchedulePick(byCadence, zone.id, "zone");
+          const lastWeeklyPick = readWeeklySchedulePick(byCadence, zone.id);
+
+          const activeZonePick = isSchedulePillDateActive(lastZonePick, calendarToday)
+            ? lastZonePick
+            : null;
+          const zoneScheduledSummaryIso = showScheduledZoneState
+            ? activeZonePick ??
+              nextFutureSchedule ??
+              (scheduledForTodayNotStarted ? cleaningDate : null)
+            : null;
+          const earliestMonthlyDue = getEarliestQueuedDueDate(
+            monthlyTasks,
+            upcomingDates,
+            cleaningDate,
+          );
+          const earliestSeasonalDue = getEarliestQueuedDueDate(
+            seasonalTasks,
+            upcomingDates,
+            cleaningDate,
+          );
 
           return (
             <Fragment key={zone.id}>
             <article
               className="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-stone-200"
             >
-              {isEditing ? (
-                <div className="space-y-3">
-                  <div>
-                    <label
-                      htmlFor={`edit-zone-name-${zone.id}`}
-                      className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-                    >
-                      Zone name
-                    </label>
-                    <input
-                      id={`edit-zone-name-${zone.id}`}
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor={`edit-zone-desc-${zone.id}`}
-                      className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-                    >
-                      Description
-                    </label>
-                    <textarea
-                      id={`edit-zone-desc-${zone.id}`}
-                      value={editDescription}
-                      onChange={(e) => setEditDescription(e.target.value)}
-                      rows={2}
-                      className="mt-2 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-3 text-base font-semibold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor={`edit-zone-freq-${zone.id}`}
-                      className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-                    >
-                      Frequency
-                    </label>
-                    <select
-                      id={`edit-zone-freq-${zone.id}`}
-                      value={editFrequency}
-                      onChange={(e) =>
-                        setEditFrequency(e.target.value as ZoneFrequency)
-                      }
-                      className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                    >
-                      {zoneFrequencyOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      className="min-h-11 rounded-2xl bg-stone-100 px-3 text-sm font-black text-stone-700 transition hover:bg-stone-200"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={saveEdit}
-                      className="min-h-11 rounded-2xl bg-emerald-950 px-3 text-sm font-black text-white transition hover:bg-emerald-900"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <h2 className="text-xl font-black text-stone-950">
-                        {zone.name}
-                      </h2>
-                      <p className="mt-1 text-sm font-semibold text-stone-600">
-                        {dailyTasks.length} task
-                        {dailyTasks.length === 1 ? "" : "s"} today,{" "}
-                        {dailyMinutes} min
-                      </p>
-                    </div>
-                    <div className="relative shrink-0">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setOpenMenuId(isMenuOpen ? null : zone.id)
-                        }
-                        aria-label={`More options for ${zone.name}`}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl text-stone-500 transition hover:bg-stone-100"
-                      >
-                        <svg
-                          aria-hidden="true"
-                          className="h-5 w-5"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <circle cx="10" cy="4" r="1.5" />
-                          <circle cx="10" cy="10" r="1.5" />
-                          <circle cx="10" cy="16" r="1.5" />
-                        </svg>
-                      </button>
-                      {isMenuOpen ? (
-                        <div className="absolute right-0 top-10 z-10 w-44 rounded-2xl bg-white p-2 shadow-lg ring-1 ring-stone-200">
-                          <button
-                            type="button"
-                            onClick={() => startEdit(zone)}
-                            className="flex w-full items-center rounded-xl px-3 py-2 text-sm font-bold text-stone-800 transition hover:bg-stone-100"
-                          >
-                            Edit
-                          </button>
-                          {isSelected ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                removeZoneToday(zone.id);
-                                setOpenMenuId(null);
-                              }}
-                              className="flex w-full items-center rounded-xl px-3 py-2 text-sm font-bold text-stone-800 transition hover:bg-stone-100"
-                            >
-                              Remove from today
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            disabled={zones.length <= 1}
-                            onClick={() => handleDelete(zone)}
-                            className="flex w-full items-center rounded-xl px-3 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-stone-400"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
+              <div className="min-w-0">
+                <h2 className="text-xl font-black text-stone-950">
+                  {zone.name}
+                </h2>
+                {!(
+                  showScheduledZoneState && zoneScheduledSummaryIso
+                ) ? (
+                  <p className="mt-1 text-sm font-semibold text-stone-600">
+                    {dailyTasks.length} task
+                    {dailyTasks.length === 1 ? "" : "s"} today,{" "}
+                    {dailyMinutes} min
+                  </p>
+                ) : null}
+              </div>
 
-                  <div className="mt-4 space-y-2">
+              <div className="mt-4 space-y-2">
                     {dailyResetTasks.length > 0 ? (
                     <CadenceRow
                       label="Daily reset"
-                      status={
-                        allDailyDone
-                          ? "Done today"
-                          : isSelected
-                            ? "Active"
-                            : "Due today"
-                      }
+                      status="Active"
                       tasks={dailyResetTasks}
+                      routineBlocks={routineBlocks}
                       isExpanded={
                         expandedCadence?.zoneId === zone.id &&
                         expandedCadence?.cadence === "daily"
                       }
-                      showViewTasks={isSelected}
+                      showViewTasks={true}
                       onToggle={() => toggleCadence(zone.id, "daily")}
                       completedTaskIds={completedTaskIds}
                     />
                     ) : null}
+                    {weeklyTasks.length > 0 ? (
+                      <CadenceRow
+                        label="Weekly care"
+                        routineBlocks={routineBlocks}
+                        status={
+                          isSchedulePillDateActive(lastWeeklyPick, calendarToday)
+                            ? scheduledOnBlurb(lastWeeklyPick)
+                            : "Due this week"
+                        }
+                        tasks={weeklyTasks}
+                        isExpanded={
+                          expandedCadence?.zoneId === zone.id &&
+                          expandedCadence?.cadence === "weekly"
+                        }
+                        showViewTasks={true}
+                        onToggle={() => toggleCadence(zone.id, "weekly")}
+                        completedTaskIds={completedTaskIds}
+                        onSchedule={() => openScheduleDialog(zone.id, "weekly")}
+                        scheduleAriaLabel="Schedule weekly care"
+                      />
+                    ) : null}
+                    {monthlyTasks.length > 0 || seasonalTasks.length > 0 ? (
+                      <div className="space-y-2">
+                        {monthlyTasks.length > 0 ? (
+                          <CadenceRow
+                            label="Monthly care"
+                            routineBlocks={routineBlocks}
+                            status={
+                              isSchedulePillDateActive(lastMonthlyPick, calendarToday)
+                                ? scheduledOnBlurb(lastMonthlyPick)
+                                : monthlyUpcomingScheduled &&
+                                    isSchedulePillDateActive(
+                                      earliestMonthlyDue,
+                                      calendarToday,
+                                    )
+                                  ? scheduledOnBlurb(earliestMonthlyDue)
+                                  : "Due this month"
+                            }
+                            tasks={monthlyTasks}
+                            isExpanded={
+                              expandedCadence?.zoneId === zone.id &&
+                              expandedCadence?.cadence === "monthly"
+                            }
+                            showViewTasks={true}
+                            onToggle={() => toggleCadence(zone.id, "monthly")}
+                            completedTaskIds={completedTaskIds}
+                            onSchedule={() => openScheduleDialog(zone.id, "monthly")}
+                            scheduleAriaLabel={`Schedule ${zone.name}`}
+                          />
+                        ) : null}
+                        {seasonalTasks.length > 0 ? (
+                          <CadenceRow
+                            label="Seasonal projects"
+                            routineBlocks={routineBlocks}
+                            status={
+                              isSchedulePillDateActive(lastSeasonalPick, calendarToday)
+                                ? scheduledOnBlurb(lastSeasonalPick)
+                                : seasonalUpcomingScheduled &&
+                                    isSchedulePillDateActive(
+                                      earliestSeasonalDue,
+                                      calendarToday,
+                                    )
+                                  ? scheduledOnBlurb(earliestSeasonalDue)
+                                  : "Due this quarter"
+                            }
+                            tasks={seasonalTasks}
+                            isExpanded={
+                              expandedCadence?.zoneId === zone.id &&
+                              expandedCadence?.cadence === "seasonal"
+                            }
+                            showViewTasks={true}
+                            onToggle={() => toggleCadence(zone.id, "seasonal")}
+                            completedTaskIds={completedTaskIds}
+                            onSchedule={() => openScheduleDialog(zone.id, "seasonal")}
+                            scheduleAriaLabel={`Schedule ${zone.name}`}
+                          />
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {adHocTasks.length > 0 ? (
+                      <CadenceRow
+                        label="As needed"
+                        status="When you notice"
+                        routineBlocks={routineBlocks}
+                        tasks={adHocTasks}
+                        isExpanded={
+                          expandedCadence?.zoneId === zone.id &&
+                          expandedCadence?.cadence === "as_needed"
+                        }
+                        showViewTasks={true}
+                        onToggle={() => toggleCadence(zone.id, "as_needed")}
+                        completedTaskIds={completedTaskIds}
+                        onAddAsNeededToToday={addAsNeededToToday}
+                        onRemoveAsNeededFromToday={removeAsNeededFromToday}
+                        asNeededOnTodayIds={asNeededOnTodayIds}
+                      />
+                    ) : null}
                   </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      disabled={isSelected}
-                      onClick={() => addZoneToday(zone.id)}
-                      className="min-h-11 rounded-2xl bg-emerald-950 px-2 text-xs font-black text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500"
-                    >
-                      {isSelected ? "Started" : "Start"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openScheduleDialog(zone.id)}
-                      className="min-h-11 rounded-2xl bg-stone-100 px-2 text-xs font-black text-stone-800 ring-1 ring-stone-200 transition hover:bg-stone-200"
-                    >
-                      Schedule
-                    </button>
-                  </div>
-                </>
-              )}
             </article>
-            {weeklyTasks.length > 0 ? (
-              <article className="rounded-[2rem] border border-sky-100 bg-gradient-to-b from-sky-50/80 to-white p-5 shadow-sm ring-1 ring-sky-100">
-                <div className="mb-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-800">
-                    Weekly care
-                  </p>
-                  <h3 className="mt-1 text-lg font-black text-stone-950">
-                    {zone.name}
-                  </h3>
-                </div>
-                <CadenceRow
-                  label="Weekly care"
-                  status="Due this week"
-                  tasks={weeklyTasks}
-                  isExpanded={
-                    expandedCadence?.zoneId === zone.id &&
-                    expandedCadence?.cadence === "weekly"
-                  }
-                  showViewTasks={isSelected}
-                  onToggle={() => toggleCadence(zone.id, "weekly")}
-                  completedTaskIds={completedTaskIds}
-                />
-
-              </article>
-            ) : null}
-            {monthlyTasks.length > 0 ? (
-              <article className="rounded-[2rem] border border-violet-100 bg-gradient-to-b from-violet-50/80 to-white p-5 shadow-sm ring-1 ring-violet-100">
-                <div className="mb-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-800">
-                    Monthly care
-                  </p>
-                  <h3 className="mt-1 text-lg font-black text-stone-950">
-                    {zone.name}
-                  </h3>
-                </div>
-                <CadenceRow
-                  label="Monthly care"
-                  status="Due this month"
-                  tasks={monthlyTasks}
-                  isExpanded={
-                    expandedCadence?.zoneId === zone.id &&
-                    expandedCadence?.cadence === "monthly"
-                  }
-                  showViewTasks={isSelected}
-                  onToggle={() => toggleCadence(zone.id, "monthly")}
-                  completedTaskIds={completedTaskIds}
-                />
-              </article>
-            ) : null}
-            {seasonalTasks.length > 0 ? (
-              <article className="rounded-[2rem] border border-orange-100 bg-gradient-to-b from-orange-50/80 to-white p-5 shadow-sm ring-1 ring-orange-100">
-                <div className="mb-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-800">
-                    Seasonal projects
-                  </p>
-                  <h3 className="mt-1 text-lg font-black text-stone-950">
-                    {zone.name}
-                  </h3>
-                </div>
-                <CadenceRow
-                  label="Seasonal projects"
-                  status="Due this quarter"
-                  tasks={seasonalTasks}
-                  isExpanded={
-                    expandedCadence?.zoneId === zone.id &&
-                    expandedCadence?.cadence === "seasonal"
-                  }
-                  showViewTasks={isSelected}
-                  onToggle={() => toggleCadence(zone.id, "seasonal")}
-                  completedTaskIds={completedTaskIds}
-                />
-              </article>
-            ) : null}
-            {adHocTasks.length > 0 ? (
-              <article className="rounded-[2rem] border border-stone-200 bg-gradient-to-b from-stone-50/80 to-white p-5 shadow-sm ring-1 ring-stone-200">
-                <div className="mb-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-stone-600">
-                    As needed
-                  </p>
-                  <h3 className="mt-1 text-lg font-black text-stone-950">
-                    {zone.name}
-                  </h3>
-                </div>
-                <CadenceRow
-                  label="As needed"
-                  status="When you notice"
-                  tasks={adHocTasks}
-                  isExpanded={
-                    expandedCadence?.zoneId === zone.id &&
-                    expandedCadence?.cadence === "as_needed"
-                  }
-                  showViewTasks={isSelected}
-                  onToggle={() => toggleCadence(zone.id, "as_needed")}
-                  completedTaskIds={completedTaskIds}
-                />
-              </article>
-            ) : null}
             </Fragment>
           );
         })}
@@ -429,6 +339,7 @@ export default function ZonesPage() {
           onClick={(event) => {
             if (event.target === event.currentTarget) {
               setScheduleTargetZoneId(null);
+              setScheduleTargetCadence(null);
             }
           }}
         >
@@ -466,7 +377,10 @@ export default function ZonesPage() {
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setScheduleTargetZoneId(null)}
+                onClick={() => {
+                  setScheduleTargetZoneId(null);
+                  setScheduleTargetCadence(null);
+                }}
                 className="min-h-11 rounded-2xl bg-stone-100 px-3 text-sm font-black text-stone-700 transition hover:bg-stone-200"
               >
                 Cancel
@@ -474,8 +388,13 @@ export default function ZonesPage() {
               <button
                 type="button"
                 onClick={() => {
-                  scheduleZoneForDate(scheduleTargetZoneId, scheduleDateValue);
+                  scheduleZoneForDate(
+                    scheduleTargetZoneId,
+                    scheduleDateValue,
+                    scheduleTargetCadence ?? "zone",
+                  );
                   setScheduleTargetZoneId(null);
+                  setScheduleTargetCadence(null);
                 }}
                 disabled={!/^\d{4}-\d{2}-\d{2}$/.test(scheduleDateValue)}
                 className="min-h-11 rounded-2xl bg-emerald-950 px-3 text-sm font-black text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500"
@@ -490,76 +409,257 @@ export default function ZonesPage() {
   );
 }
 
+
+function formatDdMmYy(isoDate: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    return "";
+  }
+
+  const [yearStr, monthStr, dayStr] = isoDate.split("-");
+
+  return `${dayStr}.${monthStr}.${yearStr.slice(-2)}`;
+}
+
+function scheduledOnBlurb(isoDate: string): string {
+  const formatted = formatDdMmYy(isoDate);
+
+  if (!formatted) {
+    return "Scheduled on";
+  }
+
+  return `Scheduled on ${formatted}`;
+}
+
+function getEarliestQueuedDueDate(
+  tasks: Task[],
+  upcomingDates: Record<string, string>,
+  cleaningDate: string,
+): string | null {
+  const dates = tasks
+    .map((task) => upcomingDates[task.id])
+    .filter((d): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .filter((d) => d > cleaningDate)
+    .sort();
+
+  return dates[0] ?? null;
+}
+
+function cadenceTasksQueuedForLater(
+  tasks: Task[],
+  cleaningDate: string,
+  upcomingDates: Record<string, string>,
+): boolean {
+  if (tasks.length === 0) {
+    return false;
+  }
+
+  return tasks.every((task) => {
+    const due = upcomingDates[task.id];
+    if (typeof due !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(due)) {
+      return false;
+    }
+
+    return cleaningDate < due;
+  });
+}
+
+function ZoneScheduleIconButton({
+  ariaLabel,
+  onClick,
+  layout,
+}: {
+  ariaLabel: string;
+  onClick: () => void;
+  layout: "compact" | "full";
+}) {
+  const buttonClass =
+    layout === "full"
+      ? "flex min-h-11 w-full items-center justify-center rounded-2xl bg-stone-100 text-stone-800 ring-1 ring-stone-200 transition hover:bg-stone-200"
+      : "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-stone-600 ring-1 ring-stone-200 transition hover:bg-stone-100 hover:text-stone-900";
+
+  const iconClass = layout === "full" ? "h-5 w-5" : "h-3.5 w-3.5";
+
+  return (
+    <button type="button" onClick={onClick} aria-label={ariaLabel} className={buttonClass}>
+      <svg
+        aria-hidden="true"
+        className={iconClass}
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        viewBox="0 0 24 24"
+      >
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M16 3v4M8 3v4M3 11h18" />
+      </svg>
+    </button>
+  );
+}
+
 function CadenceRow({
   label,
   status,
   tasks,
+  routineBlocks,
   isExpanded,
   showViewTasks,
   onToggle,
   completedTaskIds,
+  onAddAsNeededToToday,
+  onRemoveAsNeededFromToday,
+  asNeededOnTodayIds,
+  onSchedule,
+  scheduleAriaLabel,
 }: {
   label: string;
   status: string;
   tasks: Task[];
+  routineBlocks: { id: RoutineBlockId; name: string }[];
   isExpanded: boolean;
   showViewTasks: boolean;
   onToggle: () => void;
   completedTaskIds: Set<string>;
+  onAddAsNeededToToday?: (taskId: string) => void;
+  onRemoveAsNeededFromToday?: (taskId: string) => void;
+  asNeededOnTodayIds?: Set<string>;
+  onSchedule?: () => void;
+  scheduleAriaLabel?: string;
 }) {
+  const taskGroups = groupTasksByRoutineBlock(tasks, routineBlocks);
+
   return (
     <div className="rounded-2xl bg-stone-50 px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-black text-stone-800">{label}</span>
-          <span className={`rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide ${cadenceStatusStyle(status)}`}>
+          <span className="text-[0.65rem] font-bold leading-snug tracking-wide text-stone-800">{label}</span>
+          <span
+            className={`rounded-2xl px-2 py-1 text-[0.65rem] font-bold leading-snug tracking-wide normal-case ${cadenceStatusStyle(status)}`}
+          >
             {status}
           </span>
         </div>
-        {showViewTasks ? (
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-label={isExpanded ? "Hide tasks" : "View tasks"}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-stone-500 transition hover:bg-stone-200"
-          >
-            <svg
-              aria-hidden="true"
-              className="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              viewBox="0 0 24 24"
+        <div className="flex shrink-0 items-center gap-1">
+          {onSchedule ? (
+            <ZoneScheduleIconButton
+              layout="compact"
+              ariaLabel={scheduleAriaLabel ?? "Schedule this zone"}
+              onClick={onSchedule}
+            />
+          ) : null}
+          {showViewTasks ? (
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label={isExpanded ? "Hide tasks" : "View tasks"}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-stone-500 transition hover:bg-stone-200"
             >
-              {isExpanded ? (
-                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-              )}
-            </svg>
-          </button>
-        ) : null}
+              <svg
+                aria-hidden="true"
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                viewBox="0 0 24 24"
+              >
+                {isExpanded ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                )}
+              </svg>
+            </button>
+          ) : null}
+        </div>
       </div>
       {isExpanded ? (
-        <ul className="mt-2 space-y-1.5">
-          {tasks.map((task) => {
-            const isDone = completedTaskIds.has(task.id);
-            return (
-              <li
-                key={task.id}
-                className={`flex items-center justify-between rounded-xl px-2.5 py-1.5 ${isDone ? "bg-emerald-100" : "bg-white"}`}
-              >
-                <span
-                  className={`text-sm font-semibold ${isDone ? "text-emerald-700 line-through" : "text-stone-700"}`}
-                >
-                  {task.title}
-                </span>
-                <span className="text-xs font-semibold text-stone-400">
-                  {task.estimatedMinutes} min
-                </span>
-              </li>
-            );
-          })}
+        <ul className="mt-2 space-y-3">
+          {taskGroups.map((group) => (
+            <li key={group.blockId} className="list-none">
+              <p className="text-[0.65rem] font-bold leading-snug tracking-wide text-stone-500">
+                {group.label}
+              </p>
+              <ul className="mt-1.5 space-y-1.5">
+                {group.tasks.map((task) => {
+                  const isDone = completedTaskIds.has(task.id);
+                  const onToday = Boolean(asNeededOnTodayIds?.has(task.id));
+                  const rowBase = `rounded-xl px-2.5 py-1.5 ${isDone ? "bg-emerald-100" : "bg-white"}`;
+                  const titleClass = `min-w-0 text-[0.65rem] font-bold leading-snug tracking-wide ${isDone ? "text-emerald-700 line-through" : "text-stone-700"}`;
+
+                  if (onAddAsNeededToToday) {
+                    return (
+                      <li
+                        key={task.id}
+                        className={`grid grid-cols-[minmax(0,1fr)_1.75rem_3.75rem] items-center gap-x-2 gap-y-0.5 ${rowBase}`}
+                      >
+                        <span className={titleClass}>{task.title}</span>
+                        <div className="flex h-7 items-center justify-center justify-self-center">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onToday
+                                ? onRemoveAsNeededFromToday?.(task.id)
+                                : onAddAsNeededToToday(task.id)
+                            }
+                            aria-label={
+                              onToday
+                                ? `Remove ${task.title} from today`
+                                : `Add ${task.title} to today`
+                            }
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 transition ${
+                              onToday
+                                ? "bg-emerald-100 text-emerald-700 ring-emerald-200 hover:bg-emerald-200"
+                                : "bg-white text-emerald-800 ring-emerald-200 hover:bg-emerald-50"
+                            }`}
+                          >
+                            {onToday ? (
+                              <svg
+                                aria-hidden="true"
+                                className="h-3 w-3"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2.5"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M20 6 9 17l-5-5" />
+                              </svg>
+                            ) : (
+                              <svg
+                                aria-hidden="true"
+                                className="h-3 w-3"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M8 6v12l9-6z" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+                        <span className="text-right text-[0.65rem] font-bold leading-snug tracking-wide tabular-nums text-stone-400">
+                          {task.estimatedMinutes} min
+                        </span>
+                      </li>
+                    );
+                  }
+
+                  return (
+                    <li
+                      key={task.id}
+                      className={`flex items-center justify-between gap-2 ${rowBase}`}
+                    >
+                      <span className={`min-w-0 flex-1 ${titleClass}`}>{task.title}</span>
+                      <span className="shrink-0 text-[0.65rem] font-bold leading-snug tracking-wide tabular-nums text-stone-400">
+                        {task.estimatedMinutes} min
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          ))}
         </ul>
       ) : null}
     </div>
@@ -567,6 +667,10 @@ function CadenceRow({
 }
 
 function cadenceStatusStyle(status: string): string {
+  if (status.startsWith("Scheduled on")) {
+    return "bg-violet-100 text-violet-900";
+  }
+
   switch (status) {
     case "Active":
       return "bg-emerald-100 text-emerald-800";

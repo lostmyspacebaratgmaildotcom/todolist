@@ -25,8 +25,8 @@ const settingsKey = "apartment-reset:settings";
 const routineDataKey = "apartment-reset:routine-data";
 const logPrefix = "cleaningLog:";
 
-/** Bump when canonical routine rows (e.g. Kitchen) change so localStorage upgrades. */
-export const ROUTINE_SCHEMA_VERSION = 2;
+/** Bump when canonical routine rows (e.g. Kitchen, Bathroom, Bedroom, Vanity counter, Laundry, Entrance/entry) change so localStorage upgrades. */
+export const ROUTINE_SCHEMA_VERSION = 10;
 
 export const defaultSettings: Settings = {
   selectedTemplateId: defaultTemplateId,
@@ -34,6 +34,8 @@ export const defaultSettings: Settings = {
   currentZoneIds: [defaultZoneId],
   currentZoneId: defaultZoneId,
   scheduledZoneDates: {},
+  lastZoneScheduleByCadence: {},
+  upcomingTaskDates: {},
   firstRunComplete: false,
 };
 
@@ -61,11 +63,18 @@ export function loadSettings(): Settings {
         ? normalizeScheduledZoneDates(parsedSettings.scheduledZoneDates)
         : defaultSettings.scheduledZoneDates;
 
+    const upcomingTaskDates =
+      parsedSettings.upcomingTaskDates &&
+      typeof parsedSettings.upcomingTaskDates === "object"
+        ? (parsedSettings.upcomingTaskDates as Record<string, string>)
+        : defaultSettings.upcomingTaskDates;
+
     return {
       ...defaultSettings,
       ...parsedSettings,
       currentZoneIds,
       scheduledZoneDates,
+      upcomingTaskDates,
     };
   } catch {
     return defaultSettings;
@@ -150,11 +159,15 @@ export function getTodayLog(tasks: Task[], settings: Settings): DailyLog {
     const validCompletedTaskIds = existingLog.completedTaskIds.filter((taskId) =>
       tasks.some((task) => task.id === taskId),
     );
+    const validAsNeeded = (existingLog.asNeededOnTodayTaskIds ?? []).filter((taskId) =>
+      tasks.some((task) => task.id === taskId),
+    );
     const blockCompletion = calculateCompletions(tasks, validCompletedTaskIds);
 
     return {
       ...existingLog,
       completedTaskIds: validCompletedTaskIds,
+      asNeededOnTodayTaskIds: validAsNeeded,
       blockCompletion,
       dailyCompletion: calculateDailyCompletion(blockCompletion),
     };
@@ -165,6 +178,7 @@ export function getTodayLog(tasks: Task[], settings: Settings): DailyLog {
   return {
     date,
     completedTaskIds: [],
+    asNeededOnTodayTaskIds: [],
     blockCompletion,
     dailyCompletion: calculateDailyCompletion(blockCompletion),
     updatedAt: new Date().toISOString(),
@@ -223,11 +237,43 @@ function migrateRoutineSchemaIfNeeded(
   const kitchenCanon = seedTasks.filter(
     (task) => task.zoneId === "kitchen" && allowedIds.has(task.id),
   );
-  const rest = routine.tasks.filter((task) => task.zoneId !== "kitchen");
+  const entryCanon = seedTasks.filter(
+    (task) => task.zoneId === "entry" && allowedIds.has(task.id),
+  );
+  const bathroomCanon = seedTasks.filter(
+    (task) => task.zoneId === "bathroom" && allowedIds.has(task.id),
+  );
+  const bedroomCanon = seedTasks.filter(
+    (task) => task.zoneId === "bedroom" && allowedIds.has(task.id),
+  );
+  const vanityCanon = seedTasks.filter(
+    (task) => task.zoneId === "vanity" && allowedIds.has(task.id),
+  );
+  const laundryCanon = seedTasks.filter(
+    (task) => task.zoneId === "laundry" && allowedIds.has(task.id),
+  );
+  const rest = routine.tasks.filter(
+    (task) =>
+      task.zoneId !== "kitchen" &&
+      task.zoneId !== "entry" &&
+      task.zoneId !== "bathroom" &&
+      task.zoneId !== "bedroom" &&
+      task.zoneId !== "vanity" &&
+      task.zoneId !== "laundry",
+  );
 
   return {
     ...routine,
-    tasks: [...rest, ...kitchenCanon.map((task) => ({ ...task }))],
+    zones: mergeZonesFromSeed(routine.zones, defaultZones),
+    tasks: [
+      ...rest,
+      ...kitchenCanon.map((task) => ({ ...task })),
+      ...entryCanon.map((task) => ({ ...task })),
+      ...bathroomCanon.map((task) => ({ ...task })),
+      ...bedroomCanon.map((task) => ({ ...task })),
+      ...vanityCanon.map((task) => ({ ...task })),
+      ...laundryCanon.map((task) => ({ ...task })),
+    ],
     updatedAt: new Date().toISOString(),
     routineSchemaVersion: ROUTINE_SCHEMA_VERSION,
   };
@@ -250,6 +296,19 @@ function isZoneFrequency(value: unknown): value is ZoneFrequency {
     value === "weekly" ||
     value === "monthly" ||
     value === "once"
+  );
+}
+
+
+function mergeZonesFromSeed(current: Zone[], seed: Zone[]): Zone[] {
+  const byId = new Map(current.map((zone) => [zone.id, zone]));
+
+  return normalizeZones(
+    seed.map((zone) => {
+      const existing = byId.get(zone.id);
+
+      return existing ? { ...existing } : { ...zone };
+    }),
   );
 }
 

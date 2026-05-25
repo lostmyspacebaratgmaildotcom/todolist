@@ -39,6 +39,44 @@ export function sortTasks(taskList: Task[]): Task[] {
     });
 }
 
+const routineBlockOrder: RoutineBlockId[] = ["morning", "afternoon", "evening"];
+
+export type RoutineBlockGroup = {
+  blockId: RoutineBlockId;
+  label: string;
+  tasks: Task[];
+};
+
+/** Group tasks under Morning / Afternoon / Evening for Manage and Zones. */
+export function groupTasksByRoutineBlock(
+  taskList: Task[],
+  blocks: { id: RoutineBlockId; name: string }[],
+): RoutineBlockGroup[] {
+  const labelById = new Map(blocks.map((block) => [block.id, block.name]));
+  const byBlock = new Map<RoutineBlockId, Task[]>();
+
+  for (const blockId of routineBlockOrder) {
+    byBlock.set(blockId, []);
+  }
+
+  for (const task of taskList) {
+    const blockId = task.block ?? "morning";
+    const bucket = byBlock.get(blockId);
+    if (!bucket) {
+      continue;
+    }
+    bucket.push(task);
+  }
+
+  return routineBlockOrder
+    .map((blockId) => ({
+      blockId,
+      label: labelById.get(blockId) ?? blockId,
+      tasks: sortTasks(byBlock.get(blockId) ?? []),
+    }))
+    .filter((group) => group.tasks.length > 0);
+}
+
 export function getZoneDailyResetTasks(
   taskList: Task[],
   zoneId: string,
