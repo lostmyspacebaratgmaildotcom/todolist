@@ -721,30 +721,41 @@ function useCleaningAppState() {
   );
 
   const resetToday = useCallback(() => {
+    setAsNeededLocalPins(new Set());
+
     const cal = getLocalCalendarDate();
-    setSettings((currentSettings) => {
-      const upcoming = { ...(currentSettings.upcomingTaskDates ?? {}) };
-      let changed = false;
-      for (const task of routineData.tasks) {
-        if (task.cadence === "as_needed" && upcoming[task.id] === cal) {
-          delete upcoming[task.id];
-          changed = true;
-        }
+    const cleaningDate = getCleaningDate(settings.resetTime);
+    const upcoming = { ...(settings.upcomingTaskDates ?? {}) };
+    let changedUpcoming = false;
+
+    for (const task of routineData.tasks) {
+      if (task.cadence !== "as_needed") {
+        continue;
       }
-
-      if (!changed) {
-        return currentSettings;
+      const pinned = upcoming[task.id];
+      if (pinned === cal || pinned === cleaningDate) {
+        delete upcoming[task.id];
+        changedUpcoming = true;
       }
+    }
 
-      return normalizeSettings(
-        { ...currentSettings, upcomingTaskDates: upcoming },
-        routineData.zones,
-      );
-    });
+    const nextSettings = changedUpcoming
+      ? normalizeSettings({ ...settings, upcomingTaskDates: upcoming }, routineData.zones)
+      : settings;
 
-    const blockCompletion = calculateCompletions(todayTasks, []);
+    if (changedUpcoming) {
+      saveSettings(nextSettings);
+      setSettings(nextSettings);
+    }
+
+    const tasksForLog = filterTasksForToday(
+      routineData.tasks,
+      selectedZoneIds,
+      buildTodayFilterCtx(nextSettings, null, routineData.zones),
+    );
+    const blockCompletion = calculateCompletions(tasksForLog, []);
     const nextLog: DailyLog = {
-      date: getCleaningDate(settings.resetTime),
+      date: cleaningDate,
       completedTaskIds: [],
       asNeededOnTodayTaskIds: [],
       blockCompletion,
@@ -754,7 +765,7 @@ function useCleaningAppState() {
 
     saveDailyLog(nextLog);
     setDailyLog(nextLog);
-  }, [routineData.tasks, routineData.zones, settings.resetTime, todayTasks]);
+  }, [routineData.tasks, routineData.zones, settings, selectedZoneIds]);
 
   const addZone = useCallback(
     (input: { name: string; description: string; frequency: Zone["frequency"] }) => {
