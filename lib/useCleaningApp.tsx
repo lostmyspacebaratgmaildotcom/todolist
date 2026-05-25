@@ -5,7 +5,9 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -52,6 +54,15 @@ function useCleaningAppState() {
   const [dailyLog, setDailyLog] = useState<DailyLog | null>(null);
   const [calendarDay, setCalendarDay] = useState(() => getLocalCalendarDate());
   const [asNeededLocalPins, setAsNeededLocalPins] = useState<Set<string>>(() => new Set());
+
+  const settingsRef = useRef(settings);
+  const routineRef = useRef(routineData);
+  const lastCleaningDateRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+    routineRef.current = routineData;
+  }, [settings, routineData]);
 
   const template = useMemo(
     () => getTemplateById(settings.selectedTemplateId),
@@ -151,7 +162,7 @@ function useCleaningAppState() {
     setIsReady(true);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isReady) {
       return;
     }
@@ -170,15 +181,97 @@ function useCleaningAppState() {
         return nextLog;
       }
 
-      return getTodayLog(
+      const nextLog = getTodayLog(
         tasksEligibleForDailyLog(
           routineData.tasks,
           routineData.zones.map((zone) => zone.id),
         ),
         settings,
       );
+      saveDailyLog(nextLog);
+      return nextLog;
     });
   }, [isReady, settings, routineData.tasks, routineData.zones, selectedZoneIds, calendarDay]);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    lastCleaningDateRef.current = null;
+
+    const maybeRolloverCleaningDay = () => {
+      const currentSettings = settingsRef.current;
+      const zones = routineRef.current.zones;
+      const tasks = routineRef.current.tasks;
+      const nextCleaning = getCleaningDate(currentSettings.resetTime);
+      const prevCleaning = lastCleaningDateRef.current;
+
+      if (prevCleaning === null) {
+        lastCleaningDateRef.current = nextCleaning;
+        return;
+      }
+
+      if (prevCleaning === nextCleaning) {
+        return;
+      }
+
+      const calendar = getLocalCalendarDate();
+      const upcoming = { ...(currentSettings.upcomingTaskDates ?? {}) };
+      let changedUpcoming = false;
+      for (const [taskId, date] of Object.entries(upcoming)) {
+        if (date === calendar) {
+          delete upcoming[taskId];
+          changedUpcoming = true;
+        }
+      }
+
+      const lastMap = { ...(currentSettings.lastZoneScheduleByCadence ?? {}) };
+      let changedLast = false;
+      for (const [key, date] of Object.entries(lastMap)) {
+        if (date === calendar) {
+          delete lastMap[key];
+          changedLast = true;
+        }
+      }
+
+      let nextSettings = currentSettings;
+      if (changedUpcoming || changedLast) {
+        nextSettings = normalizeSettings(
+          {
+            ...currentSettings,
+            ...(changedUpcoming ? { upcomingTaskDates: upcoming } : {}),
+            ...(changedLast ? { lastZoneScheduleByCadence: lastMap } : {}),
+          },
+          zones,
+        );
+        saveSettings(nextSettings);
+        setSettings(nextSettings);
+      }
+
+      setAsNeededLocalPins(new Set());
+
+      const nextLog = getTodayLog(
+        tasksEligibleForDailyLog(
+          tasks,
+          zones.map((zone) => zone.id),
+        ),
+        nextSettings,
+      );
+      saveDailyLog(nextLog);
+      setDailyLog(nextLog);
+
+      lastCleaningDateRef.current = nextCleaning;
+    };
+
+    maybeRolloverCleaningDay();
+    const intervalId = window.setInterval(maybeRolloverCleaningDay, 5_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      lastCleaningDateRef.current = null;
+    };
+  }, [isReady, settings.resetTime]);
 
   useEffect(() => {
     if (!isReady) {
