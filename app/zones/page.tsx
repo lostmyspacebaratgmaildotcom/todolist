@@ -27,18 +27,6 @@ function readCadenceSchedulePick(
   return null;
 }
 
-function readWeeklySchedulePick(
-  map: Record<string, string> | undefined,
-  zoneId: string,
-): string | null {
-  const direct = readCadenceSchedulePick(map, zoneId, "weekly");
-  if (direct) {
-    return direct;
-  }
-
-  return readCadenceSchedulePick(map, "kitchen", "weekly");
-}
-
 /** Picks tied to a calendar day should disappear from pills once that day has passed. */
 function isSchedulePillDateActive(
   iso: string | null,
@@ -83,14 +71,11 @@ export default function ZonesPage() {
   function openScheduleDialog(zoneId: string, cadence: ZoneScheduleCadenceContext) {
     setScheduleTargetZoneId(zoneId);
     setScheduleTargetCadence(cadence);
-    const savedPick =
-      cadence === "weekly"
-        ? readWeeklySchedulePick(settings.lastZoneScheduleByCadence, zoneId)
-        : readCadenceSchedulePick(
-            settings.lastZoneScheduleByCadence,
-            zoneId,
-            cadence,
-          );
+    const savedPick = readCadenceSchedulePick(
+      settings.lastZoneScheduleByCadence,
+      zoneId,
+      cadence,
+    );
     setScheduleDateValue(savedPick ?? getLocalCalendarDate());
   }
 
@@ -155,23 +140,11 @@ export default function ZonesPage() {
           const showScheduledZoneState =
             Boolean(nextFutureSchedule) || scheduledForTodayNotStarted;
 
-          const upcomingDates = settings.upcomingTaskDates ?? {};
-          const monthlyUpcomingScheduled = cadenceTasksQueuedForLater(
-            monthlyTasks,
-            cleaningDate,
-            upcomingDates,
-          );
-          const seasonalUpcomingScheduled = cadenceTasksQueuedForLater(
-            seasonalTasks,
-            cleaningDate,
-            upcomingDates,
-          );
-
           const byCadence = settings.lastZoneScheduleByCadence;
           const lastMonthlyPick = readCadenceSchedulePick(byCadence, zone.id, "monthly");
           const lastSeasonalPick = readCadenceSchedulePick(byCadence, zone.id, "seasonal");
           const lastZonePick = readCadenceSchedulePick(byCadence, zone.id, "zone");
-          const lastWeeklyPick = readWeeklySchedulePick(byCadence, zone.id);
+          const lastWeeklyPick = readCadenceSchedulePick(byCadence, zone.id, "weekly");
 
           const activeZonePick = isSchedulePillDateActive(lastZonePick, calendarToday)
             ? lastZonePick
@@ -181,17 +154,6 @@ export default function ZonesPage() {
               nextFutureSchedule ??
               (scheduledForTodayNotStarted ? cleaningDate : null)
             : null;
-          const earliestMonthlyDue = getEarliestQueuedDueDate(
-            monthlyTasks,
-            upcomingDates,
-            cleaningDate,
-          );
-          const earliestSeasonalDue = getEarliestQueuedDueDate(
-            seasonalTasks,
-            upcomingDates,
-            cleaningDate,
-          );
-
           return (
             <Fragment key={zone.id}>
             <article
@@ -258,13 +220,7 @@ export default function ZonesPage() {
                             status={
                               isSchedulePillDateActive(lastMonthlyPick, calendarToday)
                                 ? scheduledOnBlurb(lastMonthlyPick)
-                                : monthlyUpcomingScheduled &&
-                                    isSchedulePillDateActive(
-                                      earliestMonthlyDue,
-                                      calendarToday,
-                                    )
-                                  ? scheduledOnBlurb(earliestMonthlyDue)
-                                  : "Due this month"
+                                : "Due this month"
                             }
                             tasks={monthlyTasks}
                             isExpanded={
@@ -285,13 +241,7 @@ export default function ZonesPage() {
                             status={
                               isSchedulePillDateActive(lastSeasonalPick, calendarToday)
                                 ? scheduledOnBlurb(lastSeasonalPick)
-                                : seasonalUpcomingScheduled &&
-                                    isSchedulePillDateActive(
-                                      earliestSeasonalDue,
-                                      calendarToday,
-                                    )
-                                  ? scheduledOnBlurb(earliestSeasonalDue)
-                                  : "Due this quarter"
+                                : "Due this quarter"
                             }
                             tasks={seasonalTasks}
                             isExpanded={
@@ -428,39 +378,6 @@ function scheduledOnBlurb(isoDate: string): string {
   }
 
   return `Scheduled on ${formatted}`;
-}
-
-function getEarliestQueuedDueDate(
-  tasks: Task[],
-  upcomingDates: Record<string, string>,
-  cleaningDate: string,
-): string | null {
-  const dates = tasks
-    .map((task) => upcomingDates[task.id])
-    .filter((d): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
-    .filter((d) => d > cleaningDate)
-    .sort();
-
-  return dates[0] ?? null;
-}
-
-function cadenceTasksQueuedForLater(
-  tasks: Task[],
-  cleaningDate: string,
-  upcomingDates: Record<string, string>,
-): boolean {
-  if (tasks.length === 0) {
-    return false;
-  }
-
-  return tasks.every((task) => {
-    const due = upcomingDates[task.id];
-    if (typeof due !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(due)) {
-      return false;
-    }
-
-    return cleaningDate < due;
-  });
 }
 
 function ZoneScheduleIconButton({
