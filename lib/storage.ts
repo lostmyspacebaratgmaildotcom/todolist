@@ -25,8 +25,8 @@ const settingsKey = "apartment-reset:settings";
 const routineDataKey = "apartment-reset:routine-data";
 const logPrefix = "cleaningLog:";
 
-/** Bump when canonical routine rows (e.g. Kitchen, Entrance/entry) change so localStorage upgrades. */
-export const ROUTINE_SCHEMA_VERSION = 4;
+/** Bump when canonical routine rows (e.g. Kitchen, Bathroom, Entrance/entry) change so localStorage upgrades. */
+export const ROUTINE_SCHEMA_VERSION = 6;
 
 export const defaultSettings: Settings = {
   selectedTemplateId: defaultTemplateId,
@@ -240,8 +240,14 @@ function migrateRoutineSchemaIfNeeded(
   const entryCanon = seedTasks.filter(
     (task) => task.zoneId === "entry" && allowedIds.has(task.id),
   );
+  const bathroomCanon = seedTasks.filter(
+    (task) => task.zoneId === "bathroom" && allowedIds.has(task.id),
+  );
   const rest = routine.tasks.filter(
-    (task) => task.zoneId !== "kitchen" && task.zoneId !== "entry",
+    (task) =>
+      task.zoneId !== "kitchen" &&
+      task.zoneId !== "entry" &&
+      task.zoneId !== "bathroom",
   );
 
   return {
@@ -250,6 +256,7 @@ function migrateRoutineSchemaIfNeeded(
       ...rest,
       ...kitchenCanon.map((task) => ({ ...task })),
       ...entryCanon.map((task) => ({ ...task })),
+      ...bathroomCanon.map((task) => ({ ...task })),
     ],
     updatedAt: new Date().toISOString(),
     routineSchemaVersion: ROUTINE_SCHEMA_VERSION,
