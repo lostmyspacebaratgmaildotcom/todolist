@@ -298,48 +298,6 @@ export default function ZonesPage() {
                       completedTaskIds={completedTaskIds}
                     />
                     ) : null}
-                    {monthlyTasks.length > 0 ? (
-                      <CadenceRow
-                        label="Monthly care"
-                        status="Due this month"
-                        tasks={monthlyTasks}
-                        isExpanded={
-                          expandedCadence?.zoneId === zone.id &&
-                          expandedCadence?.cadence === "monthly"
-                        }
-                        showViewTasks={isSelected}
-                        onToggle={() => toggleCadence(zone.id, "monthly")}
-                        completedTaskIds={completedTaskIds}
-                      />
-                    ) : null}
-                    {seasonalTasks.length > 0 ? (
-                      <CadenceRow
-                        label="Seasonal projects"
-                        status="Due this quarter"
-                        tasks={seasonalTasks}
-                        isExpanded={
-                          expandedCadence?.zoneId === zone.id &&
-                          expandedCadence?.cadence === "seasonal"
-                        }
-                        showViewTasks={isSelected}
-                        onToggle={() => toggleCadence(zone.id, "seasonal")}
-                        completedTaskIds={completedTaskIds}
-                      />
-                    ) : null}
-                    {adHocTasks.length > 0 ? (
-                      <CadenceRow
-                        label="As needed"
-                        status="When you notice"
-                        tasks={adHocTasks}
-                        isExpanded={
-                          expandedCadence?.zoneId === zone.id &&
-                          expandedCadence?.cadence === "as_needed"
-                        }
-                        showViewTasks={isSelected}
-                        onToggle={() => toggleCadence(zone.id, "as_needed")}
-                        completedTaskIds={completedTaskIds}
-                      />
-                    ) : null}
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2">
@@ -385,6 +343,78 @@ export default function ZonesPage() {
                   completedTaskIds={completedTaskIds}
                 />
 
+              </article>
+            ) : null}
+            {monthlyTasks.length > 0 ? (
+              <article className="rounded-[2rem] border border-violet-100 bg-gradient-to-b from-violet-50/80 to-white p-5 shadow-sm ring-1 ring-violet-100">
+                <div className="mb-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-800">
+                    Monthly care
+                  </p>
+                  <h3 className="mt-1 text-lg font-black text-stone-950">
+                    {zone.name}
+                  </h3>
+                </div>
+                <CadenceRow
+                  label="Monthly care"
+                  status="Due this month"
+                  tasks={monthlyTasks}
+                  isExpanded={
+                    expandedCadence?.zoneId === zone.id &&
+                    expandedCadence?.cadence === "monthly"
+                  }
+                  showViewTasks={isSelected}
+                  onToggle={() => toggleCadence(zone.id, "monthly")}
+                  completedTaskIds={completedTaskIds}
+                />
+              </article>
+            ) : null}
+            {seasonalTasks.length > 0 ? (
+              <article className="rounded-[2rem] border border-orange-100 bg-gradient-to-b from-orange-50/80 to-white p-5 shadow-sm ring-1 ring-orange-100">
+                <div className="mb-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-800">
+                    Seasonal projects
+                  </p>
+                  <h3 className="mt-1 text-lg font-black text-stone-950">
+                    {zone.name}
+                  </h3>
+                </div>
+                <CadenceRow
+                  label="Seasonal projects"
+                  status="Due this quarter"
+                  tasks={seasonalTasks}
+                  isExpanded={
+                    expandedCadence?.zoneId === zone.id &&
+                    expandedCadence?.cadence === "seasonal"
+                  }
+                  showViewTasks={isSelected}
+                  onToggle={() => toggleCadence(zone.id, "seasonal")}
+                  completedTaskIds={completedTaskIds}
+                />
+              </article>
+            ) : null}
+            {adHocTasks.length > 0 ? (
+              <article className="rounded-[2rem] border border-stone-200 bg-gradient-to-b from-stone-50/80 to-white p-5 shadow-sm ring-1 ring-stone-200">
+                <div className="mb-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-stone-600">
+                    As needed
+                  </p>
+                  <h3 className="mt-1 text-lg font-black text-stone-950">
+                    {zone.name}
+                  </h3>
+                </div>
+                <CadenceRow
+                  label="As needed"
+                  status="When you notice"
+                  tasks={adHocTasks}
+                  isExpanded={
+                    expandedCadence?.zoneId === zone.id &&
+                    expandedCadence?.cadence === "as_needed"
+                  }
+                  showViewTasks={isSelected}
+                  onToggle={() => toggleCadence(zone.id, "as_needed")}
+                  completedTaskIds={completedTaskIds}
+                />
               </article>
             ) : null}
             </Fragment>
