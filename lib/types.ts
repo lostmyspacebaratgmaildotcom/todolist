@@ -4,11 +4,14 @@ export type ApartmentType = "studio" | "one-bedroom" | "shared";
 
 export type ZoneFrequency = "daily" | "weekly" | "monthly" | "once";
 
+export type TaskCadence = "daily" | "weekly" | "monthly" | "seasonal";
+
 export type Task = {
   id: string;
   title: string;
   zoneId?: string;
   block: RoutineBlockId;
+  cadence?: TaskCadence;
   estimatedMinutes: number;
   required: boolean;
   sortOrder: number;
@@ -57,6 +60,7 @@ export type Settings = {
   currentZoneId: string;
   scheduledZoneDates: Record<string, string[]>;
   firstRunComplete: boolean;
+  lastAutoZoneDate?: string;
 };
 
 export type EditableRoutineData = {

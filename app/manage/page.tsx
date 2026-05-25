@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import type { RoutineBlockId, Task, Zone, ZoneFrequency } from "@/lib/types";
+import type { RoutineBlockId, Task, TaskCadence, ZoneFrequency } from "@/lib/types";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [
@@ -13,119 +13,64 @@ const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [
   { value: "once", label: "Once" },
 ];
 
+const cadenceOptions: { value: TaskCadence; label: string }[] = [
+  { value: "daily", label: "Daily reset" },
+  { value: "weekly", label: "Weekly care" },
+  { value: "monthly", label: "Monthly care" },
+  { value: "seasonal", label: "Seasonal projects" },
+];
+
 export default function ManagePage() {
   const {
     zones,
-    selectedZoneIds,
     routineBlocks,
     routineTasks,
     addZone,
     deleteZone,
-    updateZone,
     addTask,
     deleteTask,
     updateTask,
   } = useCleaningApp();
+
+  const [expandedZoneId, setExpandedZoneId] = useState<string | null>(null);
+  const [addingZone, setAddingZone] = useState(false);
   const [zoneName, setZoneName] = useState("");
   const [zoneDescription, setZoneDescription] = useState("");
   const [zoneFrequency, setZoneFrequency] = useState<ZoneFrequency>("daily");
-  const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
-  const [editZoneName, setEditZoneName] = useState("");
-  const [editZoneDescription, setEditZoneDescription] = useState("");
-  const [editZoneFrequency, setEditZoneFrequency] =
-    useState<ZoneFrequency>("daily");
+
+  const [addingTaskForZone, setAddingTaskForZone] = useState<string | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskBlock, setTaskBlock] = useState<RoutineBlockId>("morning");
   const [taskMinutes, setTaskMinutes] = useState(5);
-  const [taskZoneId, setTaskZoneId] = useState("");
+  const [taskCadence, setTaskCadence] = useState<TaskCadence>("daily");
+
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editTaskTitle, setEditTaskTitle] = useState("");
   const [editTaskBlock, setEditTaskBlock] = useState<RoutineBlockId>("morning");
   const [editTaskMinutes, setEditTaskMinutes] = useState(5);
-  const [editTaskZoneId, setEditTaskZoneId] = useState("");
-
-  const blockNamesById = useMemo(
-    () => new Map(routineBlocks.map((block) => [block.id, block.name])),
-    [routineBlocks],
-  );
-  const taskGroups = useMemo(() => {
-    const zoneGroups = zones.map((zone) => ({
-      id: zone.id,
-      name: zone.name,
-      tasks: routineTasks.filter((task) => task.zoneId === zone.id),
-    }));
-    const unassignedTasks = routineTasks.filter((task) => !task.zoneId);
-
-    if (unassignedTasks.length === 0) {
-      return zoneGroups;
-    }
-
-    return [
-      ...zoneGroups,
-      {
-        id: "no-zone",
-        name: "No zone",
-        tasks: unassignedTasks,
-      },
-    ];
-  }, [routineTasks, zones]);
+  const [editTaskCadence, setEditTaskCadence] = useState<TaskCadence>("daily");
 
   function handleZoneSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const newZoneId = addZone({
-      name: zoneName,
-      description: zoneDescription,
-      frequency: zoneFrequency,
-    });
-
-    if (newZoneId) {
-      setTaskZoneId(newZoneId);
-    }
-
+    addZone({ name: zoneName, description: zoneDescription, frequency: zoneFrequency });
     setZoneName("");
     setZoneDescription("");
     setZoneFrequency("daily");
+    setAddingZone(false);
   }
 
   function handleTaskSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!addingTaskForZone) return;
     addTask({
       title: taskTitle,
       block: taskBlock,
       estimatedMinutes: taskMinutes,
-      zoneId: taskZoneId || undefined,
+      zoneId: addingTaskForZone,
+      cadence: taskCadence,
     });
     setTaskTitle("");
     setTaskMinutes(5);
-  }
-
-  function startZoneEdit(zone: Zone) {
-    setEditingZoneId(zone.id);
-    setEditZoneName(zone.name);
-    setEditZoneDescription(zone.description);
-    setEditZoneFrequency(zone.frequency);
-  }
-
-  function cancelZoneEdit() {
-    setEditingZoneId(null);
-    setEditZoneName("");
-    setEditZoneDescription("");
-    setEditZoneFrequency("daily");
-  }
-
-  function handleZoneEditSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!editingZoneId) {
-      return;
-    }
-
-    updateZone(editingZoneId, {
-      name: editZoneName,
-      description: editZoneDescription,
-      frequency: editZoneFrequency,
-    });
-    cancelZoneEdit();
   }
 
   function startTaskEdit(task: Task) {
@@ -133,29 +78,22 @@ export default function ManagePage() {
     setEditTaskTitle(task.title);
     setEditTaskBlock(task.block);
     setEditTaskMinutes(task.estimatedMinutes);
-    setEditTaskZoneId(task.zoneId ?? "");
+    setEditTaskCadence(task.cadence ?? "daily");
   }
 
   function cancelTaskEdit() {
     setEditingTaskId(null);
-    setEditTaskTitle("");
-    setEditTaskBlock("morning");
-    setEditTaskMinutes(5);
-    setEditTaskZoneId("");
   }
 
   function handleTaskEditSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    if (!editingTaskId) {
-      return;
-    }
-
+    if (!editingTaskId) return;
     updateTask(editingTaskId, {
       title: editTaskTitle,
       block: editTaskBlock,
       estimatedMinutes: editTaskMinutes,
-      zoneId: editTaskZoneId || undefined,
+      zoneId: routineTasks.find((t) => t.id === editingTaskId)?.zoneId,
+      cadence: editTaskCadence,
     });
     cancelTaskEdit();
   }
@@ -165,507 +103,458 @@ export default function ManagePage() {
       <PageHeader
         eyebrow="Manage"
         title="Edit zones and tasks"
-        description="Customize your local routine. Changes are saved only in this browser and do not edit the public templates."
+        description="Customise your local routine. Tap a zone to see all cadences."
       />
 
       <div className="space-y-4">
-        <section className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
-          <h2 className="text-xl font-black text-stone-950">Add a zone</h2>
-          <form className="mt-4 space-y-3" onSubmit={handleZoneSubmit}>
-            <div>
-              <label
-                htmlFor="zone-name"
-                className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-              >
-                Zone name
-              </label>
-              <input
-                id="zone-name"
-                value={zoneName}
-                onChange={(event) => setZoneName(event.target.value)}
-                placeholder="Balcony, pantry, pet area"
-                className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="zone-description"
-                className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-              >
-                Description
-              </label>
-              <textarea
-                id="zone-description"
-                value={zoneDescription}
-                onChange={(event) => setZoneDescription(event.target.value)}
-                placeholder="What belongs in this area?"
-                rows={3}
-                className="mt-2 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-3 text-base font-semibold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="zone-frequency"
-                className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-              >
-                Frequency
-              </label>
-              <select
-                id="zone-frequency"
-                value={zoneFrequency}
-                onChange={(event) =>
-                  setZoneFrequency(event.target.value as ZoneFrequency)
-                }
-                className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-              >
-                {zoneFrequencyOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              type="submit"
-              className="min-h-12 w-full rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
+        {zones.map((zone) => {
+          const isExpanded = expandedZoneId === zone.id;
+          const zoneTasks = routineTasks.filter((t) => t.zoneId === zone.id);
+          const dailyTasks = zoneTasks.filter((t) => !t.cadence || t.cadence === "daily");
+          const weeklyTasks = zoneTasks.filter((t) => t.cadence === "weekly");
+          const monthlyTasks = zoneTasks.filter((t) => t.cadence === "monthly");
+          const seasonalTasks = zoneTasks.filter((t) => t.cadence === "seasonal");
+
+          return (
+            <article
+              key={zone.id}
+              className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200"
             >
-              Add zone
-            </button>
-          </form>
-        </section>
+              <button
+                type="button"
+                onClick={() =>
+                  setExpandedZoneId(isExpanded ? null : zone.id)
+                }
+                className="flex w-full items-center justify-between gap-3 text-left"
+              >
+                <div>
+                  <h2 className="text-lg font-black text-stone-950">
+                    {zone.name}
+                  </h2>
+                  <p className="mt-0.5 text-sm font-semibold text-stone-500">
+                    {zoneTasks.length} tasks across {countCadences(zoneTasks)}{" "}
+                    cadence{countCadences(zoneTasks) === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <svg
+                  aria-hidden="true"
+                  className={`h-5 w-5 shrink-0 text-stone-400 transition ${isExpanded ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
 
-        <section className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
-          <h2 className="text-xl font-black text-stone-950">Your zones</h2>
-          <div className="mt-4 space-y-3">
-            {zones.map((zone) => {
-              const isSelected = selectedZoneIds.includes(zone.id);
-              const canDelete = zones.length > 1;
-              const assignedTasks = routineTasks.filter(
-                (task) => task.zoneId === zone.id,
-              );
+              {isExpanded ? (
+                <div className="mt-4 space-y-5">
+                  {dailyTasks.length > 0 ? (
+                    <CadenceSection
+                      label="Daily reset"
+                      tasks={dailyTasks}
+                      editingTaskId={editingTaskId}
+                      editTaskTitle={editTaskTitle}
+                      editTaskBlock={editTaskBlock}
+                      editTaskMinutes={editTaskMinutes}
+                      editTaskCadence={editTaskCadence}
+                      setEditTaskTitle={setEditTaskTitle}
+                      setEditTaskBlock={setEditTaskBlock}
+                      setEditTaskMinutes={setEditTaskMinutes}
+                      setEditTaskCadence={setEditTaskCadence}
+                      routineBlocks={routineBlocks}
+                      onStartEdit={startTaskEdit}
+                      onCancelEdit={cancelTaskEdit}
+                      onSaveEdit={handleTaskEditSubmit}
+                      onDelete={deleteTask}
+                    />
+                  ) : null}
+                  {weeklyTasks.length > 0 ? (
+                    <CadenceSection
+                      label="Weekly care"
+                      tasks={weeklyTasks}
+                      editingTaskId={editingTaskId}
+                      editTaskTitle={editTaskTitle}
+                      editTaskBlock={editTaskBlock}
+                      editTaskMinutes={editTaskMinutes}
+                      editTaskCadence={editTaskCadence}
+                      setEditTaskTitle={setEditTaskTitle}
+                      setEditTaskBlock={setEditTaskBlock}
+                      setEditTaskMinutes={setEditTaskMinutes}
+                      setEditTaskCadence={setEditTaskCadence}
+                      routineBlocks={routineBlocks}
+                      onStartEdit={startTaskEdit}
+                      onCancelEdit={cancelTaskEdit}
+                      onSaveEdit={handleTaskEditSubmit}
+                      onDelete={deleteTask}
+                    />
+                  ) : null}
+                  {monthlyTasks.length > 0 ? (
+                    <CadenceSection
+                      label="Monthly care"
+                      tasks={monthlyTasks}
+                      editingTaskId={editingTaskId}
+                      editTaskTitle={editTaskTitle}
+                      editTaskBlock={editTaskBlock}
+                      editTaskMinutes={editTaskMinutes}
+                      editTaskCadence={editTaskCadence}
+                      setEditTaskTitle={setEditTaskTitle}
+                      setEditTaskBlock={setEditTaskBlock}
+                      setEditTaskMinutes={setEditTaskMinutes}
+                      setEditTaskCadence={setEditTaskCadence}
+                      routineBlocks={routineBlocks}
+                      onStartEdit={startTaskEdit}
+                      onCancelEdit={cancelTaskEdit}
+                      onSaveEdit={handleTaskEditSubmit}
+                      onDelete={deleteTask}
+                    />
+                  ) : null}
+                  {seasonalTasks.length > 0 ? (
+                    <CadenceSection
+                      label="Seasonal projects"
+                      tasks={seasonalTasks}
+                      editingTaskId={editingTaskId}
+                      editTaskTitle={editTaskTitle}
+                      editTaskBlock={editTaskBlock}
+                      editTaskMinutes={editTaskMinutes}
+                      editTaskCadence={editTaskCadence}
+                      setEditTaskTitle={setEditTaskTitle}
+                      setEditTaskBlock={setEditTaskBlock}
+                      setEditTaskMinutes={setEditTaskMinutes}
+                      setEditTaskCadence={setEditTaskCadence}
+                      routineBlocks={routineBlocks}
+                      onStartEdit={startTaskEdit}
+                      onCancelEdit={cancelTaskEdit}
+                      onSaveEdit={handleTaskEditSubmit}
+                      onDelete={deleteTask}
+                    />
+                  ) : null}
 
-              return (
-                <article key={zone.id} className="rounded-2xl bg-stone-50 p-3">
-                  {editingZoneId === zone.id ? (
-                    <form className="space-y-3" onSubmit={handleZoneEditSubmit}>
-                      <div>
-                        <label
-                          htmlFor={`edit-zone-name-${zone.id}`}
-                          className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-                        >
-                          Zone name
-                        </label>
-                        <input
-                          id={`edit-zone-name-${zone.id}`}
-                          value={editZoneName}
-                          onChange={(event) => setEditZoneName(event.target.value)}
-                          className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-white px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                        />
-                      </div>
-                      <div>
-                        <label
-                          htmlFor={`edit-zone-description-${zone.id}`}
-                          className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-                        >
-                          Description
-                        </label>
-                        <textarea
-                          id={`edit-zone-description-${zone.id}`}
-                          value={editZoneDescription}
-                          onChange={(event) =>
-                            setEditZoneDescription(event.target.value)
-                          }
-                          rows={3}
-                          className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-3 py-3 text-base font-semibold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                        />
-                      </div>
-                      <div>
-                        <label
-                          htmlFor={`edit-zone-frequency-${zone.id}`}
-                          className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-                        >
-                          Frequency
-                        </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddingTaskForZone(zone.id);
+                        setTaskCadence("daily");
+                      }}
+                      className="min-h-10 flex-1 rounded-2xl bg-emerald-950 px-3 text-sm font-black text-white transition hover:bg-emerald-900"
+                    >
+                      Add task
+                    </button>
+                    <button
+                      type="button"
+                      disabled={zones.length <= 1}
+                      onClick={() => {
+                        if (window.confirm(`Delete ${zone.name} and all its tasks?`)) {
+                          deleteZone(zone.id);
+                        }
+                      }}
+                      className="min-h-10 rounded-2xl bg-red-50 px-4 text-sm font-black text-red-800 ring-1 ring-red-100 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:text-stone-400 disabled:ring-stone-100 disabled:bg-stone-50"
+                    >
+                      Delete zone
+                    </button>
+                  </div>
+
+                  {addingTaskForZone === zone.id ? (
+                    <form
+                      className="rounded-2xl bg-stone-50 p-3 space-y-3"
+                      onSubmit={handleTaskSubmit}
+                    >
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+                        New task for {zone.name}
+                      </p>
+                      <input
+                        value={taskTitle}
+                        onChange={(e) => setTaskTitle(e.target.value)}
+                        placeholder="Task name"
+                        className="min-h-11 w-full rounded-2xl border border-stone-200 bg-white px-3 text-sm font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                      />
+                      <div className="grid grid-cols-3 gap-2">
                         <select
-                          id={`edit-zone-frequency-${zone.id}`}
-                          value={editZoneFrequency}
-                          onChange={(event) =>
-                            setEditZoneFrequency(
-                              event.target.value as ZoneFrequency,
-                            )
+                          value={taskCadence}
+                          onChange={(e) =>
+                            setTaskCadence(e.target.value as TaskCadence)
                           }
-                          className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-white px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                          className="min-h-11 rounded-2xl border border-stone-200 bg-white px-2 text-xs font-bold text-stone-900"
                         >
-                          {zoneFrequencyOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
+                          {cadenceOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
                             </option>
                           ))}
                         </select>
+                        <select
+                          value={taskBlock}
+                          onChange={(e) =>
+                            setTaskBlock(e.target.value as RoutineBlockId)
+                          }
+                          className="min-h-11 rounded-2xl border border-stone-200 bg-white px-2 text-xs font-bold text-stone-900"
+                        >
+                          {routineBlocks.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          min={1}
+                          max={120}
+                          value={taskMinutes}
+                          onChange={(e) =>
+                            setTaskMinutes(Number(e.target.value))
+                          }
+                          className="min-h-11 rounded-2xl border border-stone-200 bg-white px-2 text-xs font-bold text-stone-900"
+                          placeholder="min"
+                        />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={cancelZoneEdit}
-                          className="min-h-11 rounded-2xl bg-white px-3 text-sm font-black text-stone-700 ring-1 ring-stone-200 transition hover:bg-stone-100"
+                          onClick={() => setAddingTaskForZone(null)}
+                          className="min-h-10 rounded-2xl bg-white px-3 text-sm font-black text-stone-700 ring-1 ring-stone-200"
                         >
                           Cancel
                         </button>
                         <button
                           type="submit"
-                          className="min-h-11 rounded-2xl bg-emerald-950 px-3 text-sm font-black text-white transition hover:bg-emerald-900"
+                          className="min-h-10 rounded-2xl bg-emerald-950 px-3 text-sm font-black text-white"
                         >
-                          Save
+                          Add
                         </button>
                       </div>
                     </form>
-                  ) : (
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-sm font-black text-stone-900">
-                            {zone.name}
-                          </h3>
-                          {isSelected ? (
-                            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wide text-emerald-800">
-                              In Today
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 text-sm leading-6 text-stone-600">
-                          {zone.description}
-                        </p>
-                        <p className="mt-2 text-xs font-bold uppercase tracking-wide text-emerald-700">
-                          {formatZoneFrequency(zone.frequency)}
-                        </p>
-                        <p className="mt-2 text-xs font-bold uppercase tracking-wide text-stone-500">
-                          {assignedTasks.length} assigned task
-                          {assignedTasks.length === 1 ? "" : "s"}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => startZoneEdit(zone)}
-                          aria-label={`Edit ${zone.name}`}
-                          className="flex min-h-10 w-10 items-center justify-center rounded-xl bg-white text-stone-700 ring-1 ring-stone-200 transition hover:bg-stone-100"
-                        >
-                          <svg
-                            aria-hidden="true"
-                            className="h-4 w-4"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!canDelete}
-                          onClick={() => {
-                            if (window.confirm(`Delete ${zone.name}?`)) {
-                              deleteZone(zone.id);
-                            }
-                          }}
-                          aria-label={`Remove ${zone.name}`}
-                          className="flex min-h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-sm font-black text-red-800 ring-1 ring-red-100 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400 disabled:ring-stone-100"
-                        >
-                          x
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </section>
+                  ) : null}
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
 
-        <section className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
-          <h2 className="text-xl font-black text-stone-950">Add a task</h2>
-          <form className="mt-4 space-y-3" onSubmit={handleTaskSubmit}>
-            <div>
-              <label
-                htmlFor="task-title"
-                className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-              >
-                Task
-              </label>
+        <button
+          type="button"
+          onClick={() => setAddingZone(true)}
+          className="min-h-12 w-full rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
+        >
+          Add a new zone
+        </button>
+
+        {addingZone ? (
+          <section className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
+            <form className="space-y-3" onSubmit={handleZoneSubmit}>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+                New zone
+              </p>
               <input
-                id="task-title"
-                value={taskTitle}
-                onChange={(event) => setTaskTitle(event.target.value)}
-                placeholder="Wipe balcony rail"
-                className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                value={zoneName}
+                onChange={(e) => setZoneName(e.target.value)}
+                placeholder="Zone name"
+                className="min-h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
               />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label
-                  htmlFor="task-block"
-                  className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-                >
-                  Block
-                </label>
-                <select
-                  id="task-block"
-                  value={taskBlock}
-                  onChange={(event) =>
-                    setTaskBlock(event.target.value as RoutineBlockId)
-                  }
-                  className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-sm font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                >
-                  {routineBlocks.map((block) => (
-                    <option key={block.id} value={block.id}>
-                      {block.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label
-                  htmlFor="task-minutes"
-                  className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-                >
-                  Minutes
-                </label>
-                <input
-                  id="task-minutes"
-                  type="number"
-                  min={1}
-                  max={120}
-                  value={taskMinutes}
-                  onChange={(event) => setTaskMinutes(Number(event.target.value))}
-                  className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-sm font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                />
-              </div>
-            </div>
-            <div>
-              <label
-                htmlFor="task-zone"
-                className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-              >
-                Zone
-              </label>
+              <textarea
+                value={zoneDescription}
+                onChange={(e) => setZoneDescription(e.target.value)}
+                placeholder="Description"
+                rows={2}
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-3 text-base font-semibold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              />
               <select
-                id="task-zone"
-                value={taskZoneId}
-                onChange={(event) => setTaskZoneId(event.target.value)}
-                className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                value={zoneFrequency}
+                onChange={(e) =>
+                  setZoneFrequency(e.target.value as ZoneFrequency)
+                }
+                className="min-h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-base font-bold text-stone-900"
               >
-                <option value="">No zone</option>
-                {zones.map((zone) => (
-                  <option key={zone.id} value={zone.id}>
-                    {zone.name}
+                {zoneFrequencyOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
                   </option>
                 ))}
               </select>
-            </div>
-            <button
-              type="submit"
-              className="min-h-12 w-full rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900"
-            >
-              Add task
-            </button>
-          </form>
-        </section>
-
-        <section className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-stone-200">
-          <h2 className="text-xl font-black text-stone-950">Your tasks</h2>
-          <div className="mt-4 space-y-4">
-            {taskGroups.map((group) => {
-              return (
-                <div key={group.id}>
-                  <div className="mb-2 flex items-center justify-between">
-                    <h3 className="text-sm font-black uppercase tracking-wide text-stone-700">
-                      {group.name}
-                    </h3>
-                    <span className="text-xs font-bold text-stone-500">
-                      {group.tasks.length} tasks
-                    </span>
-                  </div>
-                  {group.tasks.length === 0 ? (
-                    <div className="rounded-2xl bg-stone-50 p-3 text-sm font-semibold text-stone-500">
-                      No tasks yet.
-                    </div>
-                  ) : (
-                    <ul className="space-y-2">
-                      {group.tasks.map((task) => {
-                        const isEditing = editingTaskId === task.id;
-
-                        return (
-                          <li
-                            key={task.id}
-                            className="rounded-2xl bg-stone-50 p-3"
-                          >
-                            {isEditing ? (
-                              <form className="space-y-3" onSubmit={handleTaskEditSubmit}>
-                                <div>
-                                  <label
-                                    htmlFor={`edit-task-title-${task.id}`}
-                                    className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-                                  >
-                                    Task
-                                  </label>
-                                  <input
-                                    id={`edit-task-title-${task.id}`}
-                                    value={editTaskTitle}
-                                    onChange={(event) =>
-                                      setEditTaskTitle(event.target.value)
-                                    }
-                                    className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-white px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                                  />
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                    <label
-                                      htmlFor={`edit-task-block-${task.id}`}
-                                      className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-                                    >
-                                      Block
-                                    </label>
-                                    <select
-                                      id={`edit-task-block-${task.id}`}
-                                      value={editTaskBlock}
-                                      onChange={(event) =>
-                                        setEditTaskBlock(
-                                          event.target.value as RoutineBlockId,
-                                        )
-                                      }
-                                      className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-white px-3 text-sm font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                                    >
-                                      {routineBlocks.map((routineBlock) => (
-                                        <option
-                                          key={routineBlock.id}
-                                          value={routineBlock.id}
-                                        >
-                                          {routineBlock.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label
-                                      htmlFor={`edit-task-minutes-${task.id}`}
-                                      className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-                                    >
-                                      Minutes
-                                    </label>
-                                    <input
-                                      id={`edit-task-minutes-${task.id}`}
-                                      type="number"
-                                      min={1}
-                                      max={120}
-                                      value={editTaskMinutes}
-                                      onChange={(event) =>
-                                        setEditTaskMinutes(Number(event.target.value))
-                                      }
-                                      className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-white px-3 text-sm font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                                    />
-                                  </div>
-                                </div>
-                                <div>
-                                  <label
-                                    htmlFor={`edit-task-zone-${task.id}`}
-                                    className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"
-                                  >
-                                    Zone
-                                  </label>
-                                  <select
-                                    id={`edit-task-zone-${task.id}`}
-                                    value={editTaskZoneId}
-                                    onChange={(event) =>
-                                      setEditTaskZoneId(event.target.value)
-                                    }
-                                    className="mt-2 min-h-12 w-full rounded-2xl border border-stone-200 bg-white px-3 text-base font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                                  >
-                                    <option value="">No zone</option>
-                                    {zones.map((zone) => (
-                                      <option key={zone.id} value={zone.id}>
-                                        {zone.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={cancelTaskEdit}
-                                    className="min-h-11 rounded-2xl bg-white px-3 text-sm font-black text-stone-700 ring-1 ring-stone-200 transition hover:bg-stone-100"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    type="submit"
-                                    className="min-h-11 rounded-2xl bg-emerald-950 px-3 text-sm font-black text-white transition hover:bg-emerald-900"
-                                  >
-                                    Save
-                                  </button>
-                                </div>
-                              </form>
-                            ) : (
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <p className="text-sm font-black text-stone-900">
-                                    {task.title}
-                                  </p>
-                                  <p className="mt-1 text-xs font-semibold text-stone-500">
-                                    {blockNamesById.get(task.block) ?? task.block} -{" "}
-                                    {task.estimatedMinutes} min
-                                  </p>
-                                </div>
-                                <div className="flex shrink-0 gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => startTaskEdit(task)}
-                                    aria-label={`Edit ${task.title}`}
-                                    className="flex min-h-10 w-10 items-center justify-center rounded-xl bg-white text-stone-700 ring-1 ring-stone-200 transition hover:bg-stone-100"
-                                  >
-                                    <svg
-                                      aria-hidden="true"
-                                      className="h-4 w-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth="2"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path d="M12 20h9" />
-                                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => deleteTask(task.id)}
-                                    aria-label={`Remove ${task.title}`}
-                                    className="flex min-h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-sm font-black text-red-800 ring-1 ring-red-100 transition hover:bg-red-100"
-                                  >
-                                    x
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAddingZone(false)}
+                  className="min-h-11 rounded-2xl bg-stone-100 px-3 text-sm font-black text-stone-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="min-h-11 rounded-2xl bg-emerald-950 px-3 text-sm font-black text-white"
+                >
+                  Add zone
+                </button>
+              </div>
+            </form>
+          </section>
+        ) : null}
       </div>
     </AppShell>
   );
 }
 
-function formatZoneFrequency(frequency: ZoneFrequency): string {
-  return zoneFrequencyOptions.find((option) => option.value === frequency)?.label ?? "Daily";
+function CadenceSection({
+  label,
+  tasks,
+  editingTaskId,
+  editTaskTitle,
+  editTaskBlock,
+  editTaskMinutes,
+  editTaskCadence,
+  setEditTaskTitle,
+  setEditTaskBlock,
+  setEditTaskMinutes,
+  setEditTaskCadence,
+  routineBlocks,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onDelete,
+}: {
+  label: string;
+  tasks: Task[];
+  editingTaskId: string | null;
+  editTaskTitle: string;
+  editTaskBlock: RoutineBlockId;
+  editTaskMinutes: number;
+  editTaskCadence: TaskCadence;
+  setEditTaskTitle: (v: string) => void;
+  setEditTaskBlock: (v: RoutineBlockId) => void;
+  setEditTaskMinutes: (v: number) => void;
+  setEditTaskCadence: (v: TaskCadence) => void;
+  routineBlocks: { id: RoutineBlockId; name: string }[];
+  onStartEdit: (task: Task) => void;
+  onCancelEdit: () => void;
+  onSaveEdit: (e: FormEvent<HTMLFormElement>) => void;
+  onDelete: (taskId: string) => void;
+}) {
+  return (
+    <div>
+      <h3 className="text-sm font-black uppercase tracking-wide text-stone-600">
+        {label}
+      </h3>
+      <ul className="mt-2 space-y-2">
+        {tasks.map((task) => {
+          const isEditing = editingTaskId === task.id;
+
+          return (
+            <li key={task.id} className="rounded-2xl bg-stone-50 p-3">
+              {isEditing ? (
+                <form className="space-y-2" onSubmit={onSaveEdit}>
+                  <input
+                    value={editTaskTitle}
+                    onChange={(e) => setEditTaskTitle(e.target.value)}
+                    className="min-h-10 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <select
+                      value={editTaskCadence}
+                      onChange={(e) =>
+                        setEditTaskCadence(e.target.value as TaskCadence)
+                      }
+                      className="min-h-10 rounded-xl border border-stone-200 bg-white px-2 text-xs font-bold text-stone-900"
+                    >
+                      {cadenceOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={editTaskBlock}
+                      onChange={(e) =>
+                        setEditTaskBlock(e.target.value as RoutineBlockId)
+                      }
+                      className="min-h-10 rounded-xl border border-stone-200 bg-white px-2 text-xs font-bold text-stone-900"
+                    >
+                      {routineBlocks.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={editTaskMinutes}
+                      onChange={(e) =>
+                        setEditTaskMinutes(Number(e.target.value))
+                      }
+                      className="min-h-10 rounded-xl border border-stone-200 bg-white px-2 text-xs font-bold text-stone-900"
+                      placeholder="min"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={onCancelEdit}
+                      className="min-h-9 rounded-xl bg-white px-3 text-xs font-black text-stone-700 ring-1 ring-stone-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="min-h-9 rounded-xl bg-emerald-950 px-3 text-xs font-black text-white"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-stone-800">
+                      {task.title}
+                    </p>
+                    <p className="mt-0.5 text-xs font-semibold text-stone-500">
+                      {task.estimatedMinutes} min &middot;{" "}
+                      {routineBlocks.find((b) => b.id === task.block)?.name ?? task.block}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onStartEdit(task)}
+                      aria-label={`Edit ${task.title}`}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-stone-600 ring-1 ring-stone-200 transition hover:bg-stone-100"
+                    >
+                      <svg
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(task.id)}
+                      aria-label={`Delete ${task.title}`}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-xs font-black text-red-700 ring-1 ring-red-100 transition hover:bg-red-100"
+                    >
+                      x
+                    </button>
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function countCadences(tasks: Task[]): number {
+  const cadences = new Set(tasks.map((t) => t.cadence ?? "daily"));
+  return cadences.size;
 }
