@@ -58,6 +58,8 @@ function useCleaningAppState() {
   const settingsRef = useRef(settings);
   const routineRef = useRef(routineData);
   const lastCleaningDateRef = useRef<string | null>(null);
+  /** Tracks reset time across layout sync so we can tell a routine-day change caused by reset vs calendar rollover. */
+  const lastResetTimeForLogRef = useRef<string | null>(null);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -167,12 +169,38 @@ function useCleaningAppState() {
       return;
     }
 
+    const prevResetTime = lastResetTimeForLogRef.current;
+    const resetTimeShiftedRoutineDay =
+      prevResetTime !== null && prevResetTime !== settings.resetTime;
+
+    let workingSettings = settings;
+
+    if (resetTimeShiftedRoutineDay) {
+      const oldCleaningDay = getCleaningDate(prevResetTime);
+      const newCleaningDay = getCleaningDate(settings.resetTime);
+      if (oldCleaningDay !== newCleaningDay) {
+        const remappedScheduled = remapScheduledZoneDatesForCleaningDayShift(
+          settings.scheduledZoneDates,
+          oldCleaningDay,
+          newCleaningDay,
+        );
+        if (remappedScheduled !== settings.scheduledZoneDates) {
+          workingSettings = normalizeSettings(
+            { ...settings, scheduledZoneDates: remappedScheduled },
+            routineData.zones,
+          );
+          saveSettings(workingSettings);
+          setSettings(workingSettings);
+        }
+      }
+    }
+
     setDailyLog((currentLog) => {
-      const expectedDate = getCleaningDate(settings.resetTime);
+      const expectedDate = getCleaningDate(workingSettings.resetTime);
       const filteredTasks = filterTasksForToday(
         routineData.tasks,
         selectedZoneIds,
-        buildTodayFilterCtx(settings, currentLog, routineData.zones),
+        buildTodayFilterCtx(workingSettings, currentLog, routineData.zones),
       );
 
       if (currentLog?.date === expectedDate) {
@@ -181,16 +209,36 @@ function useCleaningAppState() {
         return nextLog;
       }
 
-      const nextLog = getTodayLog(
-        tasksEligibleForDailyLog(
-          routineData.tasks,
-          routineData.zones.map((zone) => zone.id),
-        ),
-        settings,
+      const ctxForNewRoutineDay = buildTodayFilterCtx(
+        workingSettings,
+        resetTimeShiftedRoutineDay ? currentLog : null,
+        routineData.zones,
       );
+      const filteredForNewRoutineDay = filterTasksForToday(
+        routineData.tasks,
+        selectedZoneIds,
+        ctxForNewRoutineDay,
+      );
+
+      let nextLog: DailyLog;
+      if (resetTimeShiftedRoutineDay && currentLog) {
+        nextLog = recalculateLogForTasks(
+          {
+            ...currentLog,
+            date: expectedDate,
+            updatedAt: new Date().toISOString(),
+          },
+          filteredForNewRoutineDay,
+        );
+      } else {
+        nextLog = getTodayLog(filteredForNewRoutineDay, workingSettings);
+      }
+
       saveDailyLog(nextLog);
       return nextLog;
     });
+
+    lastResetTimeForLogRef.current = settings.resetTime;
   }, [isReady, settings, routineData.tasks, routineData.zones, selectedZoneIds, calendarDay]);
 
   useEffect(() => {
@@ -1612,6 +1660,36 @@ function recalculateLogForTasks(log: DailyLog, tasks: Task[]): DailyLog {
     blockCompletion,
     dailyCompletion: calculateDailyCompletion(blockCompletion),
   };
+}
+
+function remapScheduledZoneDatesForCleaningDayShift(
+  scheduled: Record<string, string[]> | undefined,
+  oldDay: string,
+  newDay: string,
+): Record<string, string[]> {
+  const base = scheduled ?? {};
+  if (oldDay === newDay) {
+    return base;
+  }
+
+  let changed = false;
+  const next: Record<string, string[]> = { ...base };
+
+  for (const [zoneId, dates] of Object.entries(base)) {
+    if (!dates.includes(oldDay)) {
+      continue;
+    }
+
+    changed = true;
+    const mapped = Array.from(new Set(dates.map((d) => (d === oldDay ? newDay : d))));
+    if (mapped.length === 0) {
+      delete next[zoneId];
+    } else {
+      next[zoneId] = mapped;
+    }
+  }
+
+  return changed ? next : base;
 }
 
 function addScheduledZoneDate(
