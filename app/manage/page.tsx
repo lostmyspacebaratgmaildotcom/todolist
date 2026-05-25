@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import type { RoutineBlockId, Task, TaskCadence, ZoneFrequency } from "@/lib/types";
+import { sortTasks } from "@/lib/progress";
 import { useCleaningApp } from "@/lib/useCleaningApp";
 
 const zoneFrequencyOptions: { value: ZoneFrequency; label: string }[] = [
@@ -18,6 +19,7 @@ const cadenceOptions: { value: TaskCadence; label: string }[] = [
   { value: "weekly", label: "Weekly care" },
   { value: "monthly", label: "Monthly care" },
   { value: "seasonal", label: "Seasonal projects" },
+  { value: "as_needed", label: "As needed" },
 ];
 
 export default function ManagePage() {
@@ -110,10 +112,17 @@ export default function ManagePage() {
         {zones.map((zone) => {
           const isExpanded = expandedZoneId === zone.id;
           const zoneTasks = routineTasks.filter((t) => t.zoneId === zone.id);
+          const spotlightTasks = sortTasks(
+            zoneTasks.filter((t) => Boolean(t.spotlightToday)),
+          );
           const dailyTasks = zoneTasks.filter((t) => !t.cadence || t.cadence === "daily");
+          const dailyResetTasks = sortTasks(
+            dailyTasks.filter((t) => !t.dailyPreviewOnly),
+          );
           const weeklyTasks = zoneTasks.filter((t) => t.cadence === "weekly");
           const monthlyTasks = zoneTasks.filter((t) => t.cadence === "monthly");
           const seasonalTasks = zoneTasks.filter((t) => t.cadence === "seasonal");
+          const adHocTasks = zoneTasks.filter((t) => t.cadence === "as_needed");
 
           return (
             <article
@@ -150,10 +159,130 @@ export default function ManagePage() {
 
               {isExpanded ? (
                 <div className="mt-4 space-y-5">
-                  {dailyTasks.length > 0 ? (
+                  {spotlightTasks.length > 0 ? (
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-wide text-stone-600">
+                        Today in this zone
+                      </h3>
+                      <ul className="mt-2 space-y-2">
+                        {spotlightTasks.map((task) => {
+                          const isEditing = editingTaskId === task.id;
+                          return (
+                            <li key={task.id} className="rounded-2xl bg-emerald-50/80 p-3 ring-1 ring-emerald-100">
+                              {isEditing ? (
+                                <form className="space-y-2" onSubmit={handleTaskEditSubmit}>
+                                  <input
+                                    value={editTaskTitle}
+                                    onChange={(e) => setEditTaskTitle(e.target.value)}
+                                    className="min-h-10 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm font-bold text-stone-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                                  />
+                                  <div className="grid grid-cols-3 gap-2">
+                                    <select
+                                      value={editTaskCadence}
+                                      onChange={(e) =>
+                                        setEditTaskCadence(e.target.value as TaskCadence)
+                                      }
+                                      className="min-h-10 rounded-xl border border-stone-200 bg-white px-2 text-xs font-bold text-stone-900"
+                                    >
+                                      {cadenceOptions.map((opt) => (
+                                        <option key={opt.value} value={opt.value}>
+                                          {opt.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <select
+                                      value={editTaskBlock}
+                                      onChange={(e) =>
+                                        setEditTaskBlock(e.target.value as RoutineBlockId)
+                                      }
+                                      className="min-h-10 rounded-xl border border-stone-200 bg-white px-2 text-xs font-bold text-stone-900"
+                                    >
+                                      {routineBlocks.map((b) => (
+                                        <option key={b.id} value={b.id}>
+                                          {b.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      max={120}
+                                      value={editTaskMinutes}
+                                      onChange={(e) =>
+                                        setEditTaskMinutes(Number(e.target.value))
+                                      }
+                                      className="min-h-10 rounded-xl border border-stone-200 bg-white px-2 text-xs font-bold text-stone-900"
+                                      placeholder="min"
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={cancelTaskEdit}
+                                      className="min-h-9 rounded-xl bg-white px-3 text-xs font-black text-stone-700 ring-1 ring-stone-200"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="submit"
+                                      className="min-h-9 rounded-xl bg-emerald-950 px-3 text-xs font-black text-white"
+                                    >
+                                      Save
+                                    </button>
+                                  </div>
+                                </form>
+                              ) : (
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-bold text-stone-800">
+                                      {task.title}
+                                    </p>
+                                    <p className="mt-0.5 text-xs font-semibold text-stone-500">
+                                      {task.estimatedMinutes} min
+                                    </p>
+                                  </div>
+                                  <div className="flex shrink-0 gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => startTaskEdit(task)}
+                                      aria-label={`Edit ${task.title}`}
+                                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-stone-600 ring-1 ring-stone-200 transition hover:bg-stone-100"
+                                    >
+                                      <svg
+                                        aria-hidden="true"
+                                        className="h-3.5 w-3.5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M12 20h9" />
+                                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteTask(task.id)}
+                                      aria-label={`Delete ${task.title}`}
+                                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-xs font-black text-red-700 ring-1 ring-red-100 transition hover:bg-red-100"
+                                    >
+                                      x
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {dailyResetTasks.length > 0 ? (
                     <CadenceSection
                       label="Daily reset"
-                      tasks={dailyTasks}
+                      tasks={dailyResetTasks}
                       editingTaskId={editingTaskId}
                       editTaskTitle={editTaskTitle}
                       editTaskBlock={editTaskBlock}
@@ -214,6 +343,26 @@ export default function ManagePage() {
                     <CadenceSection
                       label="Seasonal projects"
                       tasks={seasonalTasks}
+                      editingTaskId={editingTaskId}
+                      editTaskTitle={editTaskTitle}
+                      editTaskBlock={editTaskBlock}
+                      editTaskMinutes={editTaskMinutes}
+                      editTaskCadence={editTaskCadence}
+                      setEditTaskTitle={setEditTaskTitle}
+                      setEditTaskBlock={setEditTaskBlock}
+                      setEditTaskMinutes={setEditTaskMinutes}
+                      setEditTaskCadence={setEditTaskCadence}
+                      routineBlocks={routineBlocks}
+                      onStartEdit={startTaskEdit}
+                      onCancelEdit={cancelTaskEdit}
+                      onSaveEdit={handleTaskEditSubmit}
+                      onDelete={deleteTask}
+                    />
+                  ) : null}
+                  {adHocTasks.length > 0 ? (
+                    <CadenceSection
+                      label="As needed"
+                      tasks={adHocTasks}
                       editingTaskId={editingTaskId}
                       editTaskTitle={editTaskTitle}
                       editTaskBlock={editTaskBlock}

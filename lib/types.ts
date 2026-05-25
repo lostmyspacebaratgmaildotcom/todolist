@@ -4,7 +4,7 @@ export type ApartmentType = "studio" | "one-bedroom" | "shared";
 
 export type ZoneFrequency = "daily" | "weekly" | "monthly" | "once";
 
-export type TaskCadence = "daily" | "weekly" | "monthly" | "seasonal";
+export type TaskCadence = "daily" | "weekly" | "monthly" | "seasonal" | "as_needed";
 
 export type Task = {
   id: string;
@@ -16,6 +16,10 @@ export type Task = {
   required: boolean;
   sortOrder: number;
   active: boolean;
+  /** Shown under "Today in this zone" on Manage when set */
+  spotlightToday?: boolean;
+  /** Daily task excluded from the "Daily reset" list (shown only in Today preview) */
+  dailyPreviewOnly?: boolean;
 };
 
 export type RoutineBlock = {
@@ -67,4 +71,6 @@ export type EditableRoutineData = {
   zones: Zone[];
   tasks: Task[];
   updatedAt: string;
+  /** Bump in storage when bundled tasks (e.g. Kitchen) change so local data can upgrade. */
+  routineSchemaVersion?: number;
 };

@@ -113,19 +113,13 @@ export function useCleaningApp() {
         return;
       }
 
-      const dailyZoneIds = routineData.zones
-        .filter((zone) => zone.frequency === "daily")
-        .map((zone) => zone.id);
-
-      if (dailyZoneIds.length === 0) {
-        return;
-      }
-
       const nextSettings = normalizeSettings(
         {
           ...settings,
-          currentZoneIds: dailyZoneIds,
-          currentZoneId: dailyZoneIds[0] ?? settings.currentZoneId,
+          currentZoneIds:
+            settings.lastAutoZoneDate !== undefined
+              ? []
+              : settings.currentZoneIds,
           lastAutoZoneDate: expectedDate,
         },
         routineData.zones,
@@ -219,6 +213,31 @@ export function useCleaningApp() {
 
         saveSettings(nextSettings);
 
+        return nextSettings;
+      });
+    },
+    [routineData.zones],
+  );
+
+  const scheduleZoneForDate = useCallback(
+    (zoneId: string, isoDate: string) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+        return;
+      }
+
+      setSettings((currentSettings) => {
+        const nextSettings = normalizeSettings(
+          {
+            ...currentSettings,
+            scheduledZoneDates: addScheduledZoneDate(
+              currentSettings.scheduledZoneDates,
+              zoneId,
+              isoDate,
+            ),
+          },
+          routineData.zones,
+        );
+        saveSettings(nextSettings);
         return nextSettings;
       });
     },
@@ -525,14 +544,15 @@ export function useCleaningApp() {
       const blockTasks = routineData.tasks.filter(
         (task) => task.block === input.block,
       );
+      const cadence = input.cadence || "daily";
       const nextTask: Task = {
         id: createLocalId("task"),
         title,
         zoneId: input.zoneId || undefined,
         block: input.block,
-        cadence: input.cadence || "daily",
+        cadence,
         estimatedMinutes: Math.max(1, Math.round(input.estimatedMinutes || 1)),
-        required: true,
+        required: cadence !== "as_needed",
         sortOrder:
           blockTasks.reduce((max, task) => Math.max(max, task.sortOrder), 0) + 1,
         active: true,
@@ -600,16 +620,18 @@ export function useCleaningApp() {
             .filter((task) => task.block === input.block && task.id !== taskId)
             .reduce((max, task) => Math.max(max, task.sortOrder), 0) + 1
         : taskToUpdate.sortOrder;
+      const nextCadence = input.cadence ?? taskToUpdate.cadence ?? "daily";
       const nextTasks = routineData.tasks.map((task) =>
         task.id === taskId
           ? {
               ...task,
               title,
               block: input.block,
-              cadence: input.cadence || task.cadence,
+              cadence: nextCadence,
               zoneId: input.zoneId || undefined,
               estimatedMinutes: Math.max(1, Math.round(input.estimatedMinutes || 1)),
               sortOrder: nextSortOrder,
+              required: nextCadence !== "as_needed",
             }
           : task,
       );
@@ -662,6 +684,7 @@ export function useCleaningApp() {
     addZoneToday,
     removeZoneToday,
     scheduleZoneTomorrow,
+    scheduleZoneForDate,
     removeZoneTomorrow,
     startTemplate,
     setTaskCompleted,
