@@ -585,7 +585,7 @@ function CadenceRow({
 
 function cadenceStatusStyle(status: string): string {
   if (status.startsWith("Scheduled on")) {
-    return "bg-violet-100 text-violet-900";
+    return "bg-cyan-100 text-cyan-950";
   }
 
   switch (status) {
